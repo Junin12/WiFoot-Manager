@@ -1,3 +1,5 @@
-# Dados do Sofascore: ficam no Google Drive, fora do repositório
+# Coleta (respostas brutas das APIs)
+db/cache/
+# Arquivos antigos do Sofascore (não usados mais)
 data_sa.js
 data_pool.js
