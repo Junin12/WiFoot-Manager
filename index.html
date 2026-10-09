@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>EuroFoot Manager</title>
+<title>WiFoot Manager</title>
 <style>
 :root{
   --bg:#e7eee8;--panel:#fff;--ink:#16231a;--muted:#5a6a5e;--line:#cbd7cd;--row:#f3f7f3;
@@ -1181,7 +1181,7 @@ function render() {
 function renderStart() {
   const sv = savedGame();
   app.innerHTML = `<div class="start"><div class="hero card">
-    <h1>⚽ EuroFoot Manager</h1>
+    <h1>⚽ WiFoot Manager</h1>
     <p class="muted">Seja o treinador de um dos 400 clubes de 14 países europeus. Os elencos e valores vêm da base do Transfermarkt.</p>
     <div class="row" style="justify-content:center">
       <button class="primary" data-act="newWorld">Novo jogo</button>
@@ -1230,7 +1230,7 @@ function header() {
   const c = myClub(), ev = S.cal[S.slot];
   const unread = S.inbox.filter(m => !m.read).length;
   const what = ev ? (ev.t === 'L' ? `Rodada ${ev.i + 1} da liga` : EV_NAME[ev.t]) : 'Fim da temporada';
-  return `<header class="bar"><span class="logo">⚽ EuroFoot</span>
+  return `<header class="bar"><span class="logo">⚽ WiFoot</span>
     <div class="info"><strong>${esc(c.name)}</strong><span>Temporada ${S.year}/${String(S.year + 1).slice(2)}</span>
     <span class="tag">Semana ${S.slot + 1}/${S.cal.length}: ${what}</span><span>Caixa: <strong>${money(c.cash)}</strong></span>
     <span class="tag">${isWindow(S.slot) ? '🔓 Janela aberta' : '🔒 Janela fechada'}</span>${unread ? `<span class="tag">✉️ ${unread}</span>` : ''}</div>
@@ -1762,7 +1762,7 @@ const ACT = {
   export() {
     const blob = new Blob([JSON.stringify(S)], {type: 'application/json'});
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob); a.download = `eurofoot-${S.man.name}-${S.year}.json`; a.click();
+    a.href = URL.createObjectURL(blob); a.download = `wifoot-${S.man.name}-${S.year}.json`; a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   },
   quit() { if (confirm('Voltar à tela inicial? O progresso salvo continua disponível.')) { save(); UI.screen = 'start'; render(); } },

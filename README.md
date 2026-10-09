@@ -1,4 +1,4 @@
-# EuroFoot Manager
+# WiFoot Manager
 
 Jogo de técnico de futebol no estilo Brasfoot, feito em HTML, CSS e JavaScript puro, sem instalação nem build.
 
