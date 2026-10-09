@@ -9,14 +9,14 @@ Abra o `index.html` no navegador (dois cliques). O progresso é salvo automatica
 ## Modos de jogo
 
 - **Treinador:** comande um clube. Opção **Virar SAF?**: a cada início de temporada, investidores podem aportar até 15x o valor do clube.
-- **Modo Carreira:** você é um jogador que começa na base aos 17 anos, recebe propostas de outros clubes e constrói a carreira até se aposentar.
+- **Modo Carreira:** você é um jogador que começa na base aos 17 anos, recebe propostas de outros clubes e constrói a carreira até se aposentar. O salário pode ser aplicado em investimentos (da poupança às criptomoedas), na compra de clubes ou em treino particular (com limites para não desequilibrar o jogo).
 
 ## O que tem
 
 - **Ligas:** 47 divisões em 35 países: 22 da Europa (com segunda divisão nas principais), os 10 países da América do Sul, México, Estados Unidos e Arábia Saudita, com os elencos da temporada 2026–27.
 - **Copas nacionais** em mata-mata.
 - **Competições internacionais:** Copa dos Campeões (Europa), copas sul-americanas no formato da Libertadores e da Sul-Americana, Mundial de Clubes (anual) e Super Mundial de Clubes (a cada 4 anos).
-- **Ranking Mundial de Clubes:** pontuação das últimas 4 temporadas, com peso maior para as competições mais importantes.
+- **Ranking Mundial de Clubes:** últimas 4 temporadas com peso decrescente (100%, 75%, 50%, 25%); títulos internacionais valem muito mais que os nacionais.
 - **Gestão:** escalação e táticas, partida ao vivo com substituições, energia, lesões, cartões e suspensões, mercado de transferências, finanças, patrocínio master, estádio, reputação, moral do time, diretoria e propostas de emprego.
 
 ## Arquivos
