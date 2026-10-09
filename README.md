@@ -34,3 +34,11 @@ Abra o `index.html` no navegador (dois cliques). O progresso é salvo automatica
 Elencos e clubes vêm da **Wikipédia** (CC BY-SA 4.0) e do **Wikidata** (CC0). Força, valor de mercado e salário dos jogadores são estimativas próprias do jogo. Detalhes em [db/README.md](db/README.md).
 
 Nomes reais de jogadores e marcas de clubes e competições podem exigir autorização para uso comercial; por isso a versão comercial usa só o `data.js` (nomes fictícios).
+
+## Versão no Google Apps Script
+
+A pasta `appsscript/` tem o projeto para publicar o jogo como app da Web do Google:
+
+1. `perl tools/06_appsscript.pl` gera `appsscript/Index.html` (o jogo) e `appsscript/Dados.html` (os dados; usa `data_real.js` se existir).
+2. No projeto do Apps Script, copie `Code.gs`, `Index.html` e `Dados.html` (mesmos nomes).
+3. **Implantar → Nova implantação → App da Web**. Para atualizar, use **Gerenciar implantações → editar → Nova versão** (o link continua o mesmo).

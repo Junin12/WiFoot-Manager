@@ -3,3 +3,6 @@ db/cache/
 # Arquivos antigos do Sofascore (não usados mais)
 data_sa.js
 data_pool.js
+# Gerados por tools/06_appsscript.pl
+appsscript/Index.html
+appsscript/Dados.html
