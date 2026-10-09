@@ -108,7 +108,8 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 const D = window.GAME_DATA;
 const SAVE_KEY = 'eurofoot-save-v1';
 // Brasil e Argentina vêm do Sofascore (data_sa.js) e entram na frente da lista de ligas
-D.leagues.unshift(
+// Os dados do Sofascore ficam fora do repositório (Google Drive); sem eles o jogo roda só com as ligas europeias.
+if (window.SA_DATA) D.leagues.unshift(
   {id:'BR1', name:'Brasileirão Série A', name2:'Brasileirão Série B', country:'Brazil', promo:4, cup:'Copa do Brasil'},
   {id:'AR1', name:'Liga Profesional', name2:'Segunda División', country:'Argentina', promo:2, cup:'Copa Argentina'});
 for (const [id, name, league, tier, stadium, seats, players] of window.SA_DATA || []) D.clubs.push({id, name, league, tier, stadium, seats, players});
@@ -140,7 +141,7 @@ const S_AFTER = new Set([6, 8, 10, 12, 14, 16, 20, 22, 25, 27, 30, 32, 34, 35, 3
 const W_AFTER = new Set([18, 19, 20, 21, 22, 23, 24]); // Super Mundial (meio do ano)
 
 let S = null; // estado salvo
-const UI = {screen:'start', tab:'club', pickCountry:'BR1', pickClub:null, tableLg:null, tableTier:1, tableCup:'', scoreLg:null, scoreTier:1,
+const UI = {screen:'start', tab:'club', pickCountry: window.SA_DATA ? 'BR1' : 'GB1', pickClub:null, tableLg:null, tableTier:1, tableCup:'', scoreLg:null, scoreTier:1,
   mkt:{q:'',pos:'',lg:'',min:0,max:0,age:0}, live:null, results:null, summary:null};
 
 // ===================== Utilidades =====================
@@ -342,15 +343,18 @@ function startSeason() {
   S.fin = {ing:0, pat:0, sal:0, prem:0, tin:0, tout:0, obra:0, jur:0};
   S.tours = {};
   const sa = S.saNext || firstSA();
-  S.tours.LIB = newTour('LIB', sa.LIB);
-  S.tours.SUL = newTour('SUL', sa.SUL);
-  if (smwYear(S.year)) S.tours.SMW = newTour('SMW', smwTeams());
+  if (sa.LIB.length === 32 && sa.SUL.length === 32) { // sem os dados sul-americanos, as copas da CONMEBOL ficam de fora
+    S.tours.LIB = newTour('LIB', sa.LIB);
+    S.tours.SUL = newTour('SUL', sa.SUL);
+  }
+  const smw = smwYear(S.year) ? smwTeams() : [];
+  if (smw.length === 32) S.tours.SMW = newTour('SMW', smw);
   S.cal = [];
   for (let i = 0; i < LEAGUE_SLOTS; i++) {
     S.cal.push({t:'L', i});
     if (CUP_AFTER.has(i)) S.cal.push({t:'C'});
     if (EURO_AFTER.has(i)) S.cal.push({t:'E'});
-    if (S_AFTER.has(i)) S.cal.push({t:'S'});
+    if (S.tours.LIB && S_AFTER.has(i)) S.cal.push({t:'S'});
     if (S.tours.SMW && W_AFTER.has(i)) S.cal.push({t:'W'});
   }
   S.cal.push({t:'M'}); // Mundial de Clubes no fim do ano

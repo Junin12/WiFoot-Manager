@@ -20,8 +20,17 @@ Abra o `index.html` no navegador (dois cliques). O progresso é salvo automatica
 |---|---|
 | `index.html` | O jogo inteiro |
 | `data.js` | Clubes e jogadores europeus |
-| `data_sa.js` | Brasil e Argentina 2026 (dados de 09/10/2026) |
-| `data_pool.js` | Outros clubes da Libertadores e da Sul-Americana 2026 |
+
+### Dados sul-americanos (fora do repositório)
+
+Brasil, Argentina e os demais clubes da Libertadores e da Sul-Americana **não são versionados** (estão no `.gitignore`) e ficam guardados à parte.
+
+Para jogar com eles, coloque na pasta do jogo, ao lado do `index.html`:
+
+- `data_sa.js` — Brasileirão Séries A e B e liga argentina 2026
+- `data_pool.js` — outros sul-americanos e participantes reais das copas de 2026
+
+Sem esses arquivos o jogo funciona normalmente, só com as ligas europeias (sem Libertadores, Sul-Americana nem Mundiais).
 
 ## Fontes dos dados
 
