@@ -14,8 +14,12 @@
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --bg:#0f1712;--panel:#17221a;--ink:#e3ece5;--muted:#9aac9e;--line:#2c3d31;--row:#1c2a20;
-  --brand:#1f7a40;--brand2:#14502a;--good:#3ccf6e;--bad:#ff6b5b;--info:#6aa8ff;--warn:#f0b44c;
+  --brand:#1f7a40;--brand2:#14502a;--good:#3ccf6e;--bad:#ff6b5b;--info:#6aa8ff;--warn:#f0b44c;color-scheme:dark;
 }}
+:root[data-theme="dark"]{
+  --bg:#0f1712;--panel:#17221a;--ink:#e3ece5;--muted:#9aac9e;--line:#2c3d31;--row:#1c2a20;
+  --brand:#1f7a40;--brand2:#14502a;--good:#3ccf6e;--bad:#ff6b5b;--info:#6aa8ff;--warn:#f0b44c;color-scheme:dark;
+}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.4 system-ui,"Segoe UI",Roboto,sans-serif}
 button,select,input{font:inherit;color:inherit}
@@ -1171,6 +1175,8 @@ const app = document.getElementById('app');
 const dlg = document.getElementById('dlg');
 function openDlg(html) { document.getElementById('dlg-body').innerHTML = html + '<p style="text-align:right;margin:.8rem 0 0"><button data-act="closeDlg">Fechar</button></p>'; if (!dlg.open) dlg.showModal(); }
 function closeDlg() { if (dlg.open) dlg.close(); }
+// Aviso dentro da página (alert/confirm não aparecem quando o jogo roda online)
+function notify(msg) { openDlg(`<h2 id="dlg-title">Aviso</h2><p>${esc(msg)}</p>`); }
 
 function render() {
   if (UI.screen === 'start') return renderStart();
@@ -1186,7 +1192,6 @@ function renderStart() {
   const sv = savedGame();
   app.innerHTML = `<div class="start"><div class="hero card">
     <h1>⚽ WiFoot Manager</h1>
-    <p class="muted">Seja o treinador de um dos 400 clubes de 14 países europeus. Os elencos e valores vêm da base do Transfermarkt.</p>
     <div class="row" style="justify-content:center">
       <button class="primary" data-act="newWorld">Novo jogo</button>
       ${sv ? `<button data-act="loadLocal">Continuar jogo salvo (${esc(sv.man?.name)} · ${sv.year})</button>` : ''}
@@ -1520,7 +1525,8 @@ const VIEWS = {
     return `<section class="card"><h2>Jogo</h2><p class="muted">O jogo é salvo automaticamente no navegador depois de cada rodada.</p>
       <div class="row"><button data-act="save">Salvar agora</button><button data-act="export">Exportar arquivo de jogo</button>
       <label>Importar arquivo de jogo<input type="file" id="import" accept="application/json,.json"></label>
-      <button class="danger" data-act="quit">Voltar à tela inicial</button></div></section>
+      <button class="danger" data-act="quit">Voltar à tela inicial</button></div>
+      <p class="muted">Na versão online, o botão de exportar pode não baixar o arquivo. O jogo continua salvo neste navegador.</p></section>
       <section class="card"><h2>Como jogar</h2><ul>
       <li><strong>Elenco:</strong> escolha 11 titulares e até 7 reservas. Jogador fora de posição rende menos.</li>
       <li><strong>Energia:</strong> cai durante os jogos e recupera durante a semana. Faça rodízio.</li>
@@ -1649,7 +1655,7 @@ function liveTick() {
 // ===================== Ações =====================
 const ACT = {
   newWorld() { buildWorld(); UI.screen = 'pick'; UI.pickClub = null; render(); },
-  loadLocal() { try { loadState(savedGame()); render(); } catch (e) { alert(e.message); } },
+  loadLocal() { try { loadState(savedGame()); render(); } catch (e) { notify(e.message); } },
   pickClub(d) { UI.mname = document.getElementById('mname').value; UI.pickClub = +d.id; render(); },
   startCareer() {
     const name = document.getElementById('mname').value.trim();
@@ -1678,7 +1684,7 @@ const ACT = {
     else if (c.bench.includes(id)) c.bench = c.bench.filter(x => x !== id);
     else if (c.xi.length < 11) c.xi.push(id);
     else if (c.bench.length < 7) c.bench.push(id);
-    else alert('Titulares e reservas estão completos. Remova alguém primeiro.');
+    else notify('Titulares e reservas estão completos. Remova alguém primeiro.');
     render();
   },
   autoPick() { autoPick(myClub()); render(); },
@@ -1708,8 +1714,12 @@ const ACT = {
     playerDlg(p.id, `Contrato renovado por ${p.ct} ano(s) com salário de ${money(dem)}/sem.`, true); save();
   },
   release(d) {
+    const p = P(+d.id), cost = Math.round(p.sal * p.ct * 12);
+    openDlg(`<h2 id="dlg-title">Dispensar ${esc(p.n)}?</h2><p>A multa rescisória é de <strong>${money(cost)}</strong>.</p>
+      <p class="row"><button class="danger" data-act="releaseOk" data-id="${p.id}">Dispensar</button></p>`);
+  },
+  releaseOk(d) {
     const p = P(+d.id), c = myClub(), cost = Math.round(p.sal * p.ct * 12);
-    if (!confirm(`Dispensar ${p.n}? A multa rescisória é de ${money(cost)}.`)) return;
     c.cash -= cost; S.fin.tout += cost; detach(p); p.ct = 0;
     news(`${c.name} dispensou ${p.n}.`); closeDlg(); save(); render();
   },
@@ -1749,33 +1759,37 @@ const ACT = {
   setPrice() { const v = +document.getElementById('price').value; if (v >= 1 && v <= 300) { myClub().price = Math.round(v); save(); render(); } else document.getElementById('price').reportValidity(); },
   expand() {
     const n = +document.getElementById('expand').value, c = myClub(), cost = n * 600;
-    if (c.cash < cost) return alert('Dinheiro insuficiente para a obra.');
+    if (c.cash < cost) return notify('Dinheiro insuficiente para a obra.');
     c.cash -= cost; c.seats = Math.min(100000, c.seats + n); S.fin.obra += cost; news(`Obras concluídas: ${c.stadium} ganhou ${n} lugares.`); save(); render();
   },
   borrow() {
     const c = myClub(), v = Math.round(+document.getElementById('loan').value), max = Math.max(0, 1e6 + c.rep * 2e5 - c.debt);
-    if (!(v > 0) || v > max) return alert(`Valor inválido. Limite disponível: ${money(max)}.`);
+    if (!(v > 0) || v > max) return notify(`Valor inválido. Limite disponível: ${money(max)}.`);
     c.cash += v; c.debt += v; save(); render();
   },
   repay() {
     const c = myClub(), v = Math.min(c.debt, Math.round(+document.getElementById('loan').value), Math.max(0, c.cash));
-    if (!(v > 0)) return alert('Sem caixa para pagar.');
+    if (!(v > 0)) return notify('Sem caixa para pagar.');
     c.cash -= v; c.debt -= v; save(); render();
   },
-  save() { alert(save() ? 'Jogo salvo no navegador.' : 'Não foi possível salvar (armazenamento cheio ou bloqueado). Use "Exportar".'); },
+  save() { notify(save() ? 'Jogo salvo no navegador.' : 'Não foi possível salvar (armazenamento cheio ou bloqueado). Use "Exportar".'); },
   export() {
     const blob = new Blob([JSON.stringify(S)], {type: 'application/json'});
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob); a.download = `wifoot-${S.man.name}-${S.year}.json`; a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   },
-  quit() { if (confirm('Voltar à tela inicial? O progresso salvo continua disponível.')) { save(); UI.screen = 'start'; render(); } },
+  quit() {
+    openDlg(`<h2 id="dlg-title">Voltar à tela inicial?</h2><p>O progresso salvo continua disponível.</p>
+      <p class="row"><button class="primary" data-act="quitOk">Voltar à tela inicial</button></p>`);
+  },
+  quitOk() { closeDlg(); save(); UI.screen = 'start'; render(); },
   livePause() { const L = UI.live; L.paused = !L.paused; L.note = ''; renderLiveControls(); updateLive(); if (!L.paused) liveTick(); },
   liveSub() {
     const L = UI.live, m = L.um, s = m.s[m.user];
     const out = +document.getElementById('subOut').value || null, inn = +document.getElementById('subIn').value;
     if (!inn || s.subs <= 0) return;
-    if (!out && s.on.length >= 11) return alert('Escolha quem sai.');
+    if (!out && s.on.length >= 11) return notify('Escolha quem sai.');
     doSub(m, m.user, out, inn);
     renderLiveControls(); updateLive();
   },
@@ -1843,7 +1857,7 @@ document.addEventListener('change', e => {
   if (t.id === 'pickCountry') { UI.mname = document.getElementById('mname').value; UI.pickCountry = t.value; UI.pickClub = null; return render(); }
   if (t.id === 'import' && t.files[0]) {
     const r = new FileReader();
-    r.onload = () => { try { loadState(JSON.parse(r.result)); save(); render(); } catch (err) { alert('Não foi possível importar: ' + err.message); } };
+    r.onload = () => { try { loadState(JSON.parse(r.result)); save(); render(); } catch (err) { notify('Não foi possível importar: ' + err.message); } };
     r.readAsText(t.files[0]);
     return;
   }
