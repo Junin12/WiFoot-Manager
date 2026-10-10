@@ -9,7 +9,13 @@ Abra o `index.html` no navegador (dois cliques). O progresso é salvo automatica
 ## Modos de jogo
 
 - **Treinador:** comande um clube. Opção **Virar SAF?**: a cada início de temporada, investidores podem aportar até 15x o valor do clube.
-- **Modo Carreira:** você é um jogador que começa na base aos 17 anos, recebe propostas de outros clubes e constrói a carreira até se aposentar. O salário pode ser aplicado em investimentos (da poupança às criptomoedas), na compra de clubes ou em treino particular (com limites para não desequilibrar o jogo).
+- **Modo Carreira:** você é um jogador que começa na base aos 17 anos, recebe propostas de outros clubes e constrói a carreira até se aposentar. O dinheiro vai para investimentos, imóveis (aluguel toda semana), uma escolinha de futebol que revela e vende jovens, treino particular (com limites) ou a compra de clubes, onde você vira presidente e pode aportar dinheiro. Ao se aposentar, o mesmo personagem pode seguir como treinador no mesmo mundo, levando o patrimônio e os clubes.
+- **Prêmios e troféus:** no fim de cada temporada saem o melhor jogador, a revelação, o artilheiro e o goleiro menos vazado de cada liga e do mundo, além do técnico do ano. A aba Troféus guarda tudo o que você conquistou pelo clube e individualmente, além de 16 conquistas permanentes.
+- **Para jogar sem se perder:** três metas por temporada com prêmio, resumo da rodada em uma linha, dicas do auxiliar, gráfico da posição na liga (e da força e do patrimônio no Modo Carreira) e três espaços de jogo salvo.
+- **Emoção:** clássicos contra o rival da cidade (moral e torcida em dobro), momentos decisivos no jogo ao vivo (pênaltis, faltas e reta final) e palestra no intervalo.
+- **Modo Carreira:** convocação para a seleção, Mundial de Seleções a cada 4 anos, camisa 10 e braçadeira de capitão.
+- **Treinador:** olheiros revelam o potencial escondido dos jogadores de outros clubes, e a torcida reage aos resultados e ao preço do ingresso.
+- **Hall da Fama:** quem passa muitos anos num clube vira ídolo e entra na história dele.
 
 ## O que tem
 

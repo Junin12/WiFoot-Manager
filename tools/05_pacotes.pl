@@ -19,8 +19,8 @@ my %PAIS = (
 );
 
 # ---------- nomes fictícios ----------
-# Lembram os reais sem repeti-los: clube com o mesmo começo e as mesmas cores (Cruzeiro -> "Cruzense Azul de Belo Horizonte"),
-# jogador com as mesmas iniciais e outros nomes reais da mesma nacionalidade (Kaio Jorge -> "Kiko Joabe").
+# Só a primeira letra lembra o real: clube e cada parte do nome do jogador começam com a mesma letra,
+# mas já a segunda letra é diferente (Kaio Jorge -> "Kevin Jaime"). Nada de cidade ou cor no nome do clube.
 srand(20261009);
 my %realName = map { lc($_->{name}) => 1 } @{ $db->{players} };
 $realName{lc $_->{name}} = 1 for @{ $db->{clubs} };
@@ -31,7 +31,14 @@ for my $p (@{ $db->{players} }) {
   next if $p->{name} =~ /[.()]/;
   $first{$p->{nat}}{$w[0]} = 1; $last{$p->{nat}}{$w[-1]} = 1;
 }
-sub ini { my $c = substr(shift, 0, 1); $c =~ tr/ÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇÑáàâãäéèêëíìîïóòôõöúùûüçñ/AAAAAEEEEIIIIOOOOOUUUUCNaaaaaeeeeiiiiooooouuuucn/; uc $c }
+sub ini { norm_ascii(uc substr(shift, 0, 1)) }
+# Letras com acento ou de outros alfabetos latinos contam como a letra base (Ł = L, Đ = D, Þ = T)
+sub norm_ascii { my $s = shift;
+  $s =~ tr/ÁÀÂÃÄÅÆÉÈÊËĘĚÍÌÎÏİÓÒÔÕÖØŌŐÚÙÛÜŪŰŮÇČĆÑŃŇĐĎŁĽĹŠŚŞŽŹŻŘŔŤŢÞĞÝŸ/AAAAAAAEEEEEEIIIIIOOOOOOOOUUUUUUUCCCNNNDDLLLSSSZZZRRTTTGYY/;
+  $s =~ tr/áàâãäåæéèêëęěíìîïıóòôõöøōőúùûüūűůçčćñńňđďłľĺšśşžźżřŕťţþğýÿ/aaaaaaaeeeeeeiiiiioooooooouuuuuuucccnnnddlllssszzzrrtttgyy/; $s }
+sub norm { norm_ascii(lc shift) }
+# Parecido demais? Só a primeira letra pode coincidir, e uma palavra não pode conter a outra
+sub far { my ($x, $y) = map { norm($_) } @_; substr($x, 0, 2) ne substr($y, 0, 2) && index($x, $y) < 0 && index($y, $x) < 0 }
 # Índice nacionalidade -> tipo (f nome, l sobrenome, m apelido) -> inicial; "*" junta todas as nacionalidades
 my %ix;
 for my $t ([f => \%first], [l => \%last], [m => \%mono]) {
@@ -42,11 +49,12 @@ for my $t ([f => \%first], [l => \%last], [m => \%mono]) {
 sub same_ini {
   my ($nat, $k, $w) = @_;
   for my $src ($nat, '*') {
-    my @c = grep { lc($_) ne lc($w) && length($_) > 2 } @{ $ix{$src}{$k}{ini($w)} // [] };
+    my @c = grep { length($_) > 2 && far($_, $w) } @{ $ix{$src}{$k}{ini($w)} // [] };
     return $c[rand @c] if @c >= ($src eq '*' ? 1 : 3);
   }
   return;
 }
+sub any_ini { my $w = shift; my @c = grep { far($_, $w) } map { @{ $ix{'*'}{$_}{ini($w)} // [] } } qw(l f m); @c ? $c[rand @c] : 'Silva' }
 my %usedName;
 sub fake_player {
   my ($nat, $real) = @_;
@@ -59,89 +67,77 @@ sub fake_player {
     return $n;
   }
   # Sem combinação inédita: aceita repetir (apelidos se repetem no futebol)
-  return same_ini($nat, 'm', $w[0]) // same_ini($nat, 'f', $w[0]) // $w[0] . 'son' if @w == 1;
-  join ' ', same_ini($nat, 'f', $w[0]) // $w[0], same_ini($nat, 'l', $w[-1]) // $w[-1] . 's';
+  return same_ini($nat, 'm', $w[0]) // same_ini($nat, 'f', $w[0]) // any_ini($w[0]) if @w == 1;
+  join ' ', same_ini($nat, 'f', $w[0]) // any_ini($w[0]), same_ini($nat, 'l', $w[-1]) // any_ini($w[-1]);
 }
 
 my %LANG = (BR1 => 'pt', PO1 => 'pt', GB1 => 'en', SC1 => 'en', US1 => 'en', IT1 => 'it', L1 => 'de', AT1 => 'de', CH1 => 'de',
   FR1 => 'fr', BE1 => 'fr', NL1 => 'nl', TR1 => 'tr', map { $_ => 'es' } qw(ES1 AR1 UY1 CO1 CL1 PY1 EC1 PE1 BO1 VE1 MX1));
+# Modelos de nome em que a palavra principal vem primeiro (o nome começa com a mesma letra do real)
 my %PAT = (
-  pt => ['%s Futebol Clube', 'Esporte Clube %s', 'Atlético %s', 'União %s', '%s Esporte Clube', 'Associação %s', 'Sport Club %s', 'Clube Atlético %s', 'Grêmio %s'],
-  es => ['Club Deportivo %s', 'Atlético %s', 'Unión %s', 'Deportivo %s', 'Sporting %s', '%s Fútbol Club', 'Club Social %s', 'Juventud %s', 'Centro Atlético %s'],
-  en => ['%s Athletic', '%s Rovers', '%s Town', '%s Wanderers', '%s Albion', 'AFC %s', '%s Borough', '%s Harriers', '%s Rangers FC'],
-  it => ['US %s', '%s Calcio', 'AS %s', 'Polisportiva %s', 'SS %s', 'Virtus %s', 'Sporting %s', 'Atletico %s'],
-  de => ['SV %s', 'SC %s', 'TSV %s', '1. FC %s', 'VfL %s', 'Sportfreunde %s', 'FSV %s', 'Eintracht %s 1910'],
-  fr => ['Olympique %s', 'Stade %s', 'AS %s', 'Racing Club %s', 'US %s', 'Football Club %s', 'SC %s'],
-  nl => ['SC %s', 'VV %s', '%s Boys', 'FC %s 1920', 'Sportclub %s', 'Quick %s'],
-  tr => ['%sspor', '%s FK', '%s Gençlik', '%s Belediye', '%s İdman Yurdu'],
-  xx => ['FK %s', 'FC %s', 'Sporting %s', '%s SC', 'Atletik %s', 'Olimpik %s', 'Dinamo %s 1922', 'Lokomotiv %s', 'Spartak %s'],
+  pt => ['%s Futebol Clube', '%s Esporte Clube', '%s FC', '%s Atlético Clube', '%s Sport Club', '%s EC', '%s'],
+  es => ['%s Fútbol Club', '%s FC', '%s Club de Fútbol', '%s Deportivo', '%s Atlético', '%s Sporting Club', '%s'],
+  en => ['%s Athletic', '%s Rovers', '%s Town', '%s Wanderers', '%s Albion', '%s FC', '%s'],
+  it => ['%s Calcio', '%s FC', '%s Sportiva', '%s 1910', '%s Football Club', '%s'],
+  de => ['%s SV', '%s FC', '%s SC 1907', '%s Sportfreunde', '%s 04', '%s'],
+  fr => ['%s FC', '%s Football Club', '%s Athlétique', '%s Sport', '%s'],
+  nl => ['%s Boys', '%s FC', '%s Voetbalclub', '%s SC', '%s'],
+  tr => ['%sspor', '%s FK', '%s Gençlik', '%s Belediyespor', '%s'],
+  xx => ['%s FC', '%s FK', '%s SC', '%s Sport', '%s'],
 );
-# Finais que trocam o resto da palavra (Cruzeiro -> Cruz + ense)
-my %END = (
-  pt => [qw(ense ista ano ino al ária ório ão)], es => [qw(ense ino ano eño al era ales ía)],
-  en => [qw(ford ton field wick by dale ham worth bury ley)], it => [qw(ese ino etta ana ello ona ica)],
-  de => [qw(burg heim stein dorf au berg feld hausen)], fr => [qw(ais ville ac ennes ois ard ière)],
-  nl => [qw(dam hoven wijk um sel horst)], tr => [qw(kent ova gücü lar han tepe)], xx => [qw(ovo ica ar ia ets an ino)],
+# Palavras típicas de nomes de clubes (português e espanhol); as que já são clubes do banco ficam de fora
+my %WORDS = (
+  pt => [qw(Alvorada Aliança Andorinha Araguaia Atalaia Avante Bandeirante Baluarte Bonança Borboleta Brisa Cometa Comercial Colonial Caravela
+    Cachoeira Centauro Diamante Dourado Democrata Desportiva Estrela Esperança Expresso Eldorado Esmeralda Ferroviário Fênix Farol Fronteira
+    Guarany Gaivota Girassol Gavião Horizonte Harmonia Humaitá Ipiranga Imperial Itapuã Ibirapuera Jaguar Jequitibá Jangada Kaeté Kayapó
+    Lusitano Luzeiro Lagoa Mercantil Maravilha Marajó Monteverde Norte Noroeste Operário Olaria Oriente Progresso Paraíso Pioneiro Primavera
+    Planalto Quilombo Riachuelo Relâmpago Ribeira Serrano Sertão Sabiá Seleto Tupi Trovão Tamoio Tropical Uirapuru Universal Ubirajara
+    Ventania Vitorioso Vale Viking Xavante Ypê Yaguara Zênite Zumbi
+    Acauã Altamira Arapuã Anhanguera Aymoré Bambuí Barroca Boiadeiro Bandeira Canarinho Cerrado Coqueiral Candango Capivari Cabanos
+    Floresta Ferrugem Formosa Fortim Goitacá Guanabara Graúna Guará Missões Mangueira Mocambo Moinho Paineiras Pantanal Pajuçara Potiguar
+    Recreio Retiro Rondon Rubi Saturno Sentinela Solimões Sereia Sobradinho Sucuri Vanguarda Veloz Vencedor Vertente Encantado Estância
+    Tabajara Taquari Timbira Tupinambá Tapajós Iguaçu Itaúna Iracema Oásis Navegantes Nordeste Liberdade Laranjeiras Litoral)],
+  es => [qw(Alborada Amanecer Andino Bravío Bonanza Cóndor Centella Cumbre Dorado Defensa Estrella Esperanza Fénix Fortín Gaviota Guerreros
+    Halcón Imperio Iguazú Jaguares Lucero Montaña Mirador Norteño Oriental Pampa Porvenir Quetzal Relámpago Serranos Tormenta Trueno
+    Volcán Valle Yaguareté Zonda Ombú Kollas Ñandú Pucará Urquiza Wanka
+    Arrieros Barrancas Cardenales Centauros Corsarios Diablos Escorpiones Gauchos Gladiadores Leones Llaneros Marinos Milagro Piratas
+    Patriotas Ribereños Saeta Sabaneros Salinas Tiburones Toros Titanes Vencedores Vikingos Nogales Olimpo Albatros Bucaneros Cometas)],
 );
-# Palavras genéricas, que ficam como estão (não identificam o clube)
-my $GENERIC = qr/^(?:(?-i:[[:upper:]\d.]{1,4})|\d+|&|de|da|do|dos|das|del|di|la|las|los|el|the|of|y|e|and|united|city|town|county|athletic|rovers|wanderers|albion|real|atlético|atletico|club|clube|sporting|sport|deportivo|esporte|futebol|calcio|inter|internacional|racing|olympique|stade|union|unión|união|borussia|eintracht|dynamo|dinamo|fortuna|hellas|virtus|juventud|universidad|universitario|associação|associacao|atlética|regatas|foot|ball|red|bull|vila|nova|são|santa|santo|recreativo|sociedade|esportiva|sportivo|futbol|fútbol|football|fc|ac|sc|cf|club|team|de|al|ad|cd|ud|sd|nacional|independiente|deportes|central|unido|old|north|south|west|east|end|park|queens|b)$/i;
-my $VOW = 'aeiouyáàâãéêíóôõúüöä';
-sub mutate { # palavra nova com o mesmo começo e outro final (Cruzeiro -> Cruz + ense, Fulham -> Ful + field)
-  my ($w, $lang, $seed) = @_;
-  return $1 . mutate($2, $lang, $seed) if $w =~ /^(\w{1,3}-)(\w{3,})$/; # Al-Khaleej -> Al-Khalense
-  my $e =$END{$lang} // $END{xx};
-  my ($pre, $vow, $cons) = $w =~ /^([^$VOW]*)([$VOW]+)([^$VOW]*)/i or return $w . 'ense';
-  for my $i (0 .. $#$e) {
-    my $end = $e->[($seed + $i) % @$e];
-    my $s = $pre . $vow . substr($cons, 0, $end =~ /^[$VOW]/i || length($pre . $vow) < 3 ? 2 : 1);
-    my $n = $s . $end;
-    next if index(lc $w, lc $n) == 0 || index(lc $n, lc $w) == 0;
-    return $n;
-  }
-  $pre . $vow . $cons . 'ense';
+my %NATLANG = ((map { $_ => 'pt' } 'Brasil', 'Portugal'),
+  (map { $_ => 'es' } 'Argentina', 'Espanha', 'Colômbia', 'Uruguai', 'Venezuela', 'Equador', 'Paraguai', 'México', 'Bolívia', 'Peru', 'Chile'));
+# Sobrenomes por nacionalidade (um clube grego ganha um sobrenome grego, e assim por diante), por inicial
+my %sur;
+for my $p (@{ $db->{players} }) {
+  my @w = split /\s+/, $p->{name}; next if @w < 2;
+  my $s = $w[-1]; next unless $s =~ /^\p{Lu}\p{Ll}{3,9}$/;
+  $sur{$p->{nat}}{ini($s)}{$s} = 1; $sur{'*'}{ini($s)}{$s} = 1;
 }
-# Nome da cor (para clubes de língua portuguesa e espanhola)
-sub cname {
-  my ($r, $g, $bl) = map { hex } $_[0] =~ /#(..)(..)(..)/;
-  my ($mx, $mn) = ((sort { $b <=> $a } $r, $g, $bl)[0], (sort { $a <=> $b } $r, $g, $bl)[0]);
-  return $mx > 190 ? 'white' : $mx < 70 ? 'black' : 'grey' if $mx - $mn < 45;
-  my $h = $mx == $r ? 60 * (($g - $bl) / ($mx - $mn)) : $mx == $g ? 60 * (2 + ($bl - $r) / ($mx - $mn)) : 60 * (4 + ($r - $g) / ($mx - $mn));
-  $h += 360 if $h < 0;
-  return 'claret' if ($h < 15 || $h > 330) && $mx < 150;
-  $h < 15 || $h >= 330 ? 'red' : $h < 40 ? 'orange' : $h < 70 ? 'yellow' : $h < 170 ? 'green' : $h < 205 ? 'sky' : $h < 265 ? 'blue' : 'purple';
-}
-my %CW = (
-  pt => {red => 'Rubro', blue => 'Azul', green => 'Verde', yellow => 'Amarelo', black => 'Negro', white => 'Branco', sky => 'Celeste', orange => 'Laranja', purple => 'Violeta', claret => 'Grená', grey => 'Prata',
-    'black white' => 'Alvinegro', 'black red' => 'Rubro-Negro', 'green white' => 'Alviverde', 'red white' => 'Alvirrubro', 'black green' => 'Verdinegro', 'blue red' => 'Tricolor', 'black blue' => 'Tricolor', 'green red' => 'Tricolor', 'blue white' => 'Azul'},
-  es => {red => 'Rojo', blue => 'Azul', green => 'Verde', yellow => 'Amarillo', black => 'Negro', white => 'Blanco', sky => 'Celeste', orange => 'Naranja', purple => 'Violeta', claret => 'Granate', grey => 'Plata',
-    'black white' => 'Albinegro', 'black red' => 'Rojinegro', 'green white' => 'Verdiblanco', 'red white' => 'Rojiblanco', 'blue white' => 'Azul', 'blue red' => 'Azulgrana', 'sky white' => 'Celeste'},
-);
-sub color_word { my ($c, $lang) = @_; my $col = $c->{colors} or return;
-  my @n = map { cname($_) } @$col; $CW{$lang}{join ' ', sort @n} // $CW{$lang}{$n[0]} }
-my %usedClub;
+for my $n (values %sur) { $_ = [sort keys %$_] for values %$n }
+my %realTok = map { (lc(norm($_)) => 1) } map { split /\s+/, $_->{name} } @{ $db->{clubs} };
+my %lgCountry = map { $_->{id} => $_->{country} } @{ $db->{leagues} };
+my (%usedClub, %usedWord);
 sub fake_club {
   my ($c) = @_;
   my $lang = $LANG{$c->{league}} // 'xx';
-  my ($seed, $city) = ($c->{id}, city_of($c));
-  my @w = split /\s+/, $c->{name};
-  my @dist = grep { $_ !~ $GENERIC } @w;
-  my @opts;
-  if (@dist) {
-    my $m = mutate($dist[0], $lang, $seed);
-    my @keep = map { $_ eq $dist[0] ? $m : $_ } grep { $_ eq $dist[0] || $_ =~ $GENERIC } @w;
-    my $only = (grep { $_ !~ /^(?:[[:upper:]]{2,4}|\d+)$/ } @keep) == 1 ? $m : undef; # siglas (FR, FBPA) não contam
-    if ($only && $CW{$lang}) {
-      my $k = color_word($c, $lang);
-      push @opts, "$only $k de $city" if $k && length("$only $k de $city") <= 32;
-      push @opts, "$only $k" if $k;
+  my $country = $lgCountry{$c->{league}} // '';
+  my ($first) = grep { /^\p{L}{2}/ } split /\s+/, $c->{name}; $first //= $c->{name};
+  my $pats = $PAT{$lang}; my @full = grep { $_ ne '%s' } @$pats; # sobrenome sozinho não parece clube
+  my $wl = $WORDS{$NATLANG{$country} // ''} // [];
+  for my $src ([[grep { ini($_) eq ini($first) } @$wl], $pats], [$sur{$country}{ini($first)}, \@full], [$sur{'*'}{ini($first)}, \@full]) {
+    my ($list, $pp) = @$src;
+    for my $w (shuffle grep { !$usedWord{$_} && !$realTok{lc norm($_)} && far($_, $first) } @{ $list // [] }) {
+      my $n = sprintf $pp->[rand @$pp], $w;
+      next if $usedClub{lc $n} || $realName{lc $n};
+      $usedClub{lc $n} = $usedWord{$w} = 1; return $n;
     }
-    push @opts, sprintf($PAT{$lang}[$seed % @{ $PAT{$lang} }], $only) if $only;
-    push @opts, join ' ', @keep;
   }
-  push @opts, map { sprintf $_, $city } shuffle @{ $PAT{$lang} };
-  for my $n (@opts) { next if $usedClub{lc $n} || $realName{lc $n}; $usedClub{lc $n} = 1; return $n }
-  for my $k (2 .. 99) { my $n = "$opts[0] " . (1900 + $k); next if $usedClub{lc $n}++; return $n }
+  my $n = sprintf $full[0], city_of($c); $n .= ' ' . (1900 + $c->{id} % 100) while $usedClub{lc $n}++; $n;
 }
+# Cores da versão comercial: a principal é a do clube; a segunda é sorteada entre cores que contrastam com ela
+my @PALETA = ('#ffffff', '#111111', '#0b2a6b', '#c8102e', '#f2c400', '#0a7d3b', '#5bb4e5', '#f07800', '#5b2a86', '#7a1f2b', '#8e9aa6', '#e8e1c5');
+sub cdist { my @a = map { hex } $_[0] =~ /#(..)(..)(..)/; my @b = map { hex } $_[1] =~ /#(..)(..)(..)/;
+  sqrt(($a[0] - $b[0])**2 + ($a[1] - $b[1])**2 + ($a[2] - $b[2])**2) }
+sub fake_colors { my $c1 = shift->[0]; my @ok = grep { cdist($c1, $_) > 160 } @PALETA; [$c1, $ok[rand @ok]] }
 # Cidade do clube; sem cidade no Wikidata, usa a de outro clube do mesmo país (nunca o nome real do clube)
 my %cities; for my $c (@{ $db->{clubs} }) { push @{ $cities{$c->{league}} }, clean_city($c->{city}) if $c->{city} && clean_city($c->{city}) }
 sub clean_city { my $s = shift // return; $s =~ s/\s*\(.*//; $s =~ s/,.*//; $s =~ /^[^\d]{3,30}$/ ? $s : undef }
@@ -149,6 +145,15 @@ my %cityOf;
 sub city_of { my $c = shift; $cityOf{$c->{id}} //= clean_city($c->{city}) // do { my $l = $cities{$c->{league}} // ['Vila Nova']; $l->[$c->{id} % @$l] } }
 sub fake_stadium { my ($c) = @_; my $city = city_of($c);
   my @o = ("Estádio de $city", "Arena $city", "Estádio Municipal de $city", "Estádio Central de $city"); $o[$c->{id} % @o] }
+
+# Nome das ligas na versão comercial: "Brasil 1 - Campeonato Brasileiro 1ª Divisão"
+my %ADJ = (Inglaterra => 'Inglês', Espanha => 'Espanhol', 'Itália' => 'Italiano', Alemanha => 'Alemão', 'França' => 'Francês', Portugal => 'Português',
+  Holanda => 'Holandês', 'Bélgica' => 'Belga', Turquia => 'Turco', 'Escócia' => 'Escocês', 'Grécia' => 'Grego', 'Rússia' => 'Russo', 'Ucrânia' => 'Ucraniano',
+  Dinamarca => 'Dinamarquês', 'Áustria' => 'Austríaco', 'Suíça' => 'Suíço', 'Suécia' => 'Sueco', Noruega => 'Norueguês', 'Polônia' => 'Polonês',
+  'República Tcheca' => 'Tcheco', 'Croácia' => 'Croata', 'Sérvia' => 'Sérvio', Brasil => 'Brasileiro', Argentina => 'Argentino', Uruguai => 'Uruguaio',
+  'Colômbia' => 'Colombiano', Chile => 'Chileno', Paraguai => 'Paraguaio', Equador => 'Equatoriano', Peru => 'Peruano', 'Bolívia' => 'Boliviano',
+  Venezuela => 'Venezuelano', 'México' => 'Mexicano', 'Estados Unidos' => 'Estadunidense', 'Arábia Saudita' => 'Saudita');
+sub lg_name { my ($country, $n) = @_; "$country $n - Campeonato " . ($ADJ{$country} // "de $country") . " ${n}ª Divisão" }
 
 # ---------- saída no formato do jogo ----------
 sub pack_data {
@@ -159,17 +164,16 @@ sub pack_data {
     my $t2 = $lgInfo{"$l->{id}-2"};
     my $r = $PAIS{$l->{id}};
     push @lgs, {id => $l->{id}, country => $l->{country}, conf => $l->{conf},
-      name => $fict ? "1ª Divisão ($l->{country})" : $l->{name}, ($t2 ? (name2 => $fict ? "2ª Divisão ($l->{country})" : $t2->{name}, promo => $r ? $r->[0] : 2) : (promo => 0)),
-      cup => $r ? ($fict ? $r->[2] : $r->[1]) : "Copa $l->{country}"};
+      name => lg_name($l->{country}, 1), ($t2 ? (name2 => lg_name($l->{country}, 2), promo => $r ? $r->[0] : 2) : (promo => 0)),
+      cup => "Copa Nacional ($l->{country})"};
   }
   my @cl = map { my $c = $_;
-    {id => $c->{id}, name => $fict ? fake_club($c) : $c->{name}, league => $c->{league}, tier => $c->{tier},
-      stadium => $fict || !$c->{stadium} ? fake_stadium($c) : $c->{stadium}, seats => $c->{seats} || 12000, ($c->{colors} ? (colors => $c->{colors}) : ()),
+    {id => $c->{id}, name => $fict ? fake_club($c) : $c->{name}, league => $c->{league}, tier => $c->{tier}, city => city_of($c),
+      stadium => $fict || !$c->{stadium} ? fake_stadium($c) : $c->{stadium}, seats => $c->{seats} || 12000, ($c->{colors} ? (colors => $fict ? fake_colors($c->{colors}) : $c->{colors}) : ()),
       players => [map { [$fict ? fake_player($_->{nat}, $_->{name}) : $_->{name}, $_->{pos}, $_->{age}, $_->{value}, $_->{nat}] } @{ $byClub{$c->{id}} // [] }]}
   } @{ $db->{clubs} };
-  my $names = $fict
-    ? {LIB => 'Taça dos Campeões da América', SUL => 'Copa Continental', EU => 'Copa dos Campeões', INT => 'Mundial de Clubes', SMW => 'Super Mundial de Clubes'}
-    : {LIB => 'Copa Libertadores', SUL => 'Copa Sul-Americana', EU => 'Copa dos Campeões', INT => 'Mundial de Clubes', SMW => 'Super Mundial de Clubes'};
+  # Competições com nomes neutros nas duas versões
+  my $names = {LIB => 'América 1', SUL => 'América 2', EU => 'Europa 1', INT => 'Mundial', SMW => 'Mega Mundial'};
   {version => $db->{version}, fictional => $fict ? JSON::PP::true : JSON::PP::false, names => $names, leagues => \@lgs, clubs => \@cl};
 }
 sub write_js {
