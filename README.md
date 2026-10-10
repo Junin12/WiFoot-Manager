@@ -20,6 +20,10 @@ Abra o `index.html` no navegador (dois cliques). O progresso é salvo automatica
 - **Mundo que muda:** a cada ano surgem fenômenos nas bases e as lendas se despedem; clubes mal geridos entram em crise (vendem craques e podem perder pontos) e outros ganham donos bilionários ou ampliam o estádio.
 - **Recordes:** maior goleada, mais gols numa temporada, maior artilheiro da história do jogo, maior transferência e mais pontos numa liga (aba Histórico e recordes).
 - **Tema claro e escuro:** botão no topo (automático, claro ou escuro) e opção na aba Jogo.
+- **Partidas:** motor calibrado com médias reais (≈2,6 gols por jogo, goleadas raras), notas de 0 a 10 com melhor em campo, seleção da rodada, Time do Ano da liga e do mundo, instruções táticas (pressão alta, toque de bola, contra-ataque, bola longa), árbitro de vídeo e modo de partida rápida (só os lances decisivos).
+- **Jogadores com personalidade:** características como Artilheiro, Líder, Raçudo, Frágil, Cobrador, Decide clássico e Paredão; escalação num campinho.
+- **Mercado:** propostas relâmpago no último dia da janela.
+- **Praticidade:** tutorial no primeiro jogo, tamanho do texto ajustável e, na versão Apps Script, jogos salvos no Google Drive do dono do app.
 
 ## O que tem
 
