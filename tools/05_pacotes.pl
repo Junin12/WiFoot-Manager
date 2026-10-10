@@ -59,16 +59,21 @@ my %usedName;
 sub fake_player {
   my ($nat, $real) = @_;
   my @w = split /\s+/, $real;
+  # Apelido (uma palavra) vira um primeiro nome comum; nunca o nome de um jogador real
+  my $one = sub { for (1 .. 30) { my $n = same_ini($nat, 'f', $w[0]) // any_ini($w[0]); return $n if $n && !$realName{lc $n} } return };
   for (1 .. 40) {
     my $n;
-    if (@w == 1) { $n = same_ini($nat, 'm', $w[0]) // same_ini($nat, 'f', $w[0]) }
+    if (@w == 1) { $n = $one->() }
     else { my ($f, $l) = (same_ini($nat, 'f', $w[0]), same_ini($nat, 'l', $w[-1])); $n = "$f $l" if $f && $l }
     next if !$n || $realName{lc $n} || $usedName{$n}++;
     return $n;
   }
-  # Sem combinação inédita: aceita repetir (apelidos se repetem no futebol)
-  return same_ini($nat, 'm', $w[0]) // same_ini($nat, 'f', $w[0]) // any_ini($w[0]) if @w == 1;
-  join ' ', same_ini($nat, 'f', $w[0]) // any_ini($w[0]), same_ini($nat, 'l', $w[-1]) // any_ini($w[-1]);
+  # Sem combinação inédita: aceita repetir, mas nunca um nome real
+  for (1 .. 40) {
+    my $n = @w == 1 ? $one->() : join ' ', same_ini($nat, 'f', $w[0]) // any_ini($w[0]), same_ini($nat, 'l', $w[-1]) // any_ini($w[-1]);
+    return $n if $n && !$realName{lc $n};
+  }
+  return any_ini($w[0]) . ' ' . any_ini($w[0]) . 's';
 }
 
 my %LANG = (BR1 => 'pt', PO1 => 'pt', GB1 => 'en', SC1 => 'en', US1 => 'en', IT1 => 'it', L1 => 'de', AT1 => 'de', CH1 => 'de',
