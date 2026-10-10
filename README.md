@@ -42,3 +42,14 @@ A pasta `appsscript/` tem o projeto para publicar o jogo como app da Web do Goog
 1. `perl tools/06_appsscript.pl` gera `appsscript/Index.html` (o jogo) e `appsscript/Dados.html` (os dados; usa `data_real.js` se existir).
 2. No projeto do Apps Script, copie `Code.gs`, `Index.html` e `Dados.html` (mesmos nomes).
 3. **Implantar → Nova implantação → App da Web**. Para atualizar, use **Gerenciar implantações → editar → Nova versão** (o link continua o mesmo).
+
+## App instalável (GitHub Pages)
+
+A pasta `docs/` é o jogo pronto para instalar no celular ou no computador (PWA), com **nomes fictícios** e funcionamento offline. É gerada por:
+
+```bash
+powershell -ExecutionPolicy Bypass -File tools/icones.ps1 -Out docs   # ícones (só quando mudar o visual)
+perl tools/07_pwa.pl                                                  # jogo, dados, manifesto e service worker
+```
+
+O GitHub Pages publica essa pasta (Settings → Pages → branch `main`, pasta `/docs`). Para instalar: abra o site no Chrome (Android/computador) e use **Instalar app**; no iPhone, Safari → Compartilhar → **Adicionar à Tela de Início**.
