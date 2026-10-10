@@ -17,6 +17,9 @@ Abra o `index.html` no navegador (dois cliques). O progresso é salvo automatica
 - **Simular até... (⏩):** avança até o próximo jogo importante, a próxima janela de transferências ou o fim da temporada, parando quando algo pede decisão.
 - **Treinador:** olheiros revelam o potencial escondido dos jogadores de outros clubes, e a torcida reage aos resultados e ao preço do ingresso.
 - **Hall da Fama:** quem passa muitos anos num clube vira ídolo e entra na história dele.
+- **Mundo que muda:** a cada ano surgem fenômenos nas bases e as lendas se despedem; clubes mal geridos entram em crise (vendem craques e podem perder pontos) e outros ganham donos bilionários ou ampliam o estádio.
+- **Recordes:** maior goleada, mais gols numa temporada, maior artilheiro da história do jogo, maior transferência e mais pontos numa liga (aba Histórico e recordes).
+- **Tema claro e escuro:** botão no topo (automático, claro ou escuro) e opção na aba Jogo.
 
 ## O que tem
 

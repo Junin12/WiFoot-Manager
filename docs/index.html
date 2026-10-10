@@ -266,6 +266,7 @@ button.big{padding:.75rem 2.2rem;font-size:1.05rem;border-radius:12px}
 .shirt{font-size:.85em;color:var(--muted);font-variant-numeric:tabular-nums}
 .chip-derby{background:#b3261e;color:#fff}
 .simopts{display:grid;gap:.5rem}
+.pstars{color:var(--accent);letter-spacing:1px;white-space:nowrap;text-shadow:0 0 1px rgba(0,0,0,.35)}
 .simlog{max-height:45vh;overflow:auto;padding-left:1.1rem;margin:.4rem 0}
 .simlog li{margin:.2rem 0}
 /* ---------- galeria de troféus ---------- */
@@ -584,7 +585,10 @@ function startSeason() {
     d.fx.forEach((_, j) => { d.roundAt[Math.floor(j * LEAGUE_SLOTS / d.fx.length)] = j; });
     d.res = [];
     d.tbl = {};
-    for (const id of d.clubs) { d.tbl[id] = {j:0, v:0, e:0, d:0, gp:0, gc:0, pts:0}; C(id).tier = d.tier; }
+    for (const id of d.clubs) {
+      d.tbl[id] = {j:0, v:0, e:0, d:0, gp:0, gc:0, pts:0}; C(id).tier = d.tier;
+      if (C(id).penalty) { d.tbl[id].pts = -C(id).penalty; C(id).penalty = 0; } // punição por crise financeira
+    }
   }
   S.cups = {nat:{}, euro: newCup('EU', NAMES.EU, S.euroNext)};
   for (const id of S.cups.euro.teams) addRank(id, 5); // participação na Copa dos Campeões
@@ -815,6 +819,7 @@ function finalize(m) {
     if (S.sponsor?.win && m.gh !== m.ga && winner(m) === S.man.club) { myClub().cash += S.sponsor.win; S.fin.pat += S.sponsor.win; }
   }
   updateMorale(m);
+  recordMatch(m);
   if (S.man?.club && (m.h === S.man.club || m.a === S.man.club)) myMatchDone(m);
 }
 // Moral sobe com vitórias e cai com derrotas; vencer um favorito vale mais
@@ -1197,6 +1202,7 @@ function aiTransfers() {
     if (from) from.cash += fee;
     buyer.cash -= fee;
     movePlayer(best, buyer.id);
+    recordTransfer(best, from?.id, buyer.id, fee);
     best.sal = salaryFor(best.v); best.ct = ri(2, 4);
     if (best.r >= 78) headline('transfer', {to: buyer.name, p: best.n, from: from ? from.name : 'livre', fee: money(fee)});
     while (buyer.pl.length > 32) {
@@ -1243,7 +1249,7 @@ function playerOffers() {
 }
 function joinClub(o) {
   const p = me_p(), from = p.club ? C(p.club) : null, to = C(o.club);
-  if (from) { from.cash += o.fee; to.cash -= o.fee; hofCheck(p, from.id); }
+  if (from) { from.cash += o.fee; to.cash -= o.fee; hofCheck(p, from.id); recordTransfer(p, from.id, to.id, o.fee); }
   movePlayer(p, to.id);
   Object.assign(S.man, {joinYear: S.year, shirt: ri(13, 30), cap: false}); // clube novo: camisa e braçadeira de novo
   p.sal = o.sal; p.ct = o.yrs;
@@ -1386,6 +1392,7 @@ function endSeason() {
   if (ok && S.sponsor?.goal) { club.cash += S.sponsor.goal; S.fin.pat += S.sponsor.goal; lines.push(`💰 ${S.sponsor.n} pagou o bônus de objetivo: ${money(S.sponsor.goal)}.`); }
 
   lines.push(...awLines);
+  seasonRecords();
   nationalSeasonEnd(lines);
   if (career) careerSeasonEnd(lines, myPos);
   else if (S.man.money != null) { wealthSeasonEnd(lines); S.man.wage = coachWage(S.man.rep); }
@@ -1401,6 +1408,7 @@ function endSeason() {
     p.en = 100; p.sus = 0;
     if ((p.a >= 35 && rnd() < .35) || p.a >= 39) {
       if (mine && p.club === mine) lines.push(`👋 ${p.n} se aposentou.`);
+      legendRetires(p, lines);
       hofCheck(p); removePlayer(p); continue;
     }
     if (!p.club) continue;
@@ -1432,6 +1440,8 @@ function endSeason() {
     }
     fillSquad(c, avg - 4);
   }
+  newPhenoms(lines);
+  clubFortunes(lines);
   const fa = free();
   for (const p of fa.slice(500)) delete S.players[p.id];
   // Reputação dos clubes: avisa mudanças de patamar do seu clube e da 1ª divisão do seu país
@@ -1607,6 +1617,7 @@ const ACH = [
   ['prop', '🏠', 'Investidor', 'Comprar o primeiro imóvel'],
   ['acad', '🏫', 'Formador', 'Abrir uma escolinha de futebol'],
   ['coach', '📋', 'Do campo ao banco', 'Virar treinador depois de jogador'],
+  ['record', '🏅', 'Recordista', 'Quebrar um recorde da história do jogo'],
 ];
 const ACH_KEY = 'wifoot-conquistas';
 function achGlobal() { try { return JSON.parse(localStorage.getItem(ACH_KEY) || '{}'); } catch { return {}; } }
@@ -1654,6 +1665,7 @@ function myMatchDone(m) {
   if (gf - ga >= 5) unlock('rout');
   if (derby && won) unlock('derby');
   S.man.unb = lost ? 0 : (S.man.unb || 0) + 1;
+  S.man.bestUnb = Math.max(S.man.bestUnb || 0, S.man.unb);
   if (S.man.unb >= 10) unlock('unb10');
   // Torcida: resultado (clássico vale o dobro) e, em casa, o preço do ingresso
   c.fans ??= 60;
@@ -2003,6 +2015,134 @@ function simUntil(target) {
     ${why === 'mail' ? '<p><button class="primary" data-act="simInbox">Ver mensagens</button></p>' : why === 'lineup' ? '<p><button class="primary" data-act="goSquad">Corrigir no elenco</button></p>' : ''}`);
 }
 
+// ===================== Recordes da história do jogo =====================
+const REC_LABEL = {win: '💥 Maior goleada', season: '👟 Mais gols numa temporada', career: '🐐 Maior artilheiro da história', transfer: '💰 Maior transferência', points: '📈 Mais pontos numa liga'};
+function newRecord(k, rec, mine) {
+  S.records ??= {};
+  S.records[k] = {...rec, y: S.year};
+  if (mine) { news(`🏅 Recorde do jogo: ${REC_LABEL[k].slice(2).toLowerCase()} — ${rec.txt}!`); toast(`🏅 Novo recorde: ${REC_LABEL[k].slice(2)}!`); unlock('record'); }
+}
+// Depois de cada partida: maior goleada (diferença; empate na diferença, mais gols)
+function recordMatch(m) {
+  const d = Math.abs(m.gh - m.ga), cur = S.records?.win;
+  if (d < 4 || (cur && (d < cur.d || (d === cur.d && m.gh + m.ga <= cur.t)))) return;
+  const mine = S.man?.club && winner(m) === S.man.club;
+  newRecord('win', {d, t: m.gh + m.ga, txt: `${C(m.h).name} ${m.gh} x ${m.ga} ${C(m.a).name}`, comp: matchMeta(m).comp}, mine);
+}
+function recordTransfer(p, fromId, toId, fee) {
+  if (!fee || fee <= (S.records?.transfer?.v || 0)) return;
+  const me = coachClub(), mine = (me && (toId === me || fromId === me)) || p.id === S.man?.pid;
+  newRecord('transfer', {v: fee, txt: `${p.n} para o ${C(toId).name} por ${money(fee)}`}, mine);
+}
+// Fim da temporada: gols do ano, gols na história (desde o início do jogo) e pontos nas ligas
+function seasonRecords() {
+  S.records ??= {};
+  const pid = isCareer() ? S.man.pid : 0, me = coachClub();
+  let top = null, legend = null;
+  for (const p of Object.values(S.players)) {
+    p.tg = (p.tg || 0) + p.g;
+    if (p.g && (!top || p.g > top.g)) top = p;
+    if (!legend || p.tg > legend.tg) legend = p;
+  }
+  const mineP = p => p.id === pid || (me && p.club === me);
+  if (top && top.g > (S.records.season?.g || 0)) newRecord('season', {g: top.g, txt: `${top.n} (${C(top.club)?.name ?? 'sem clube'}), ${top.g} gols`}, mineP(top));
+  if (legend && legend.tg > (S.records.career?.g || 0)) newRecord('career', {g: legend.tg, txt: `${legend.n}, ${legend.tg} gols`}, mineP(legend) && !S.records.career);
+  for (const lg of Object.keys(LEAGUES)) {
+    const d = S.divs[divKey(lg, 1)], c = standings({clubs: Object.keys(d.tbl).map(Number), tbl: d.tbl})[0], pts = d.tbl[c]?.pts || 0; // tabela da temporada que terminou
+    if (pts > (S.records.points?.pts || 0)) newRecord('points', {pts, txt: `${C(c).name} (${LEAGUES[lg].country}), ${pts} pontos`}, c === me);
+  }
+}
+function recordsCard() {
+  const r = S.records || {}, best = Object.values(S.clubs).sort((a, b) => b.titles - a.titles)[0];
+  const rows = Object.keys(REC_LABEL).filter(k => r[k]).map(k => `<tr><td>${REC_LABEL[k]}</td><td>${esc(r[k].txt)}${r[k].comp ? ` <span class="muted">(${esc(r[k].comp)})</span>` : ''}</td><td class="n">${r[k].y}</td></tr>`).join('');
+  const mine = [S.man.bestUnb ? `🛡️ Maior sequência invicta: ${S.man.bestUnb} jogos` : '', S.man.titles.length ? `🏆 ${S.man.titles.length} título(s)` : ''].filter(Boolean);
+  return `<section class="card"><h2>📚 Recordes</h2><p class="muted">Desde o início deste jogo (${S.start || 2026}). Quebre um recorde para entrar na história.</p>
+    ${rows ? `<div class="tw"><table><tbody>${rows}${best?.titles ? `<tr><td>🏛️ Clube mais vitorioso</td><td>${esc(best.name)}, ${best.titles} pontos de títulos</td><td></td></tr>` : ''}</tbody></table></div>` : '<p class="muted">Os recordes aparecem depois das primeiras rodadas.</p>'}
+    ${mine.length ? `<p><strong>Seus números:</strong> ${mine.join(' · ')}</p>` : ''}</section>`;
+}
+
+// ===================== Mudança de gerações =====================
+// Todo ano surgem alguns fenômenos nas bases; as lendas se aposentam e o jogo registra a despedida
+function newPhenoms(lines) {
+  const clubs = Object.values(S.clubs).filter(c => c.lg !== 'SA' && c.pl.length < 32);
+  const born = [];
+  for (let i = 0; i < ri(3, 5); i++) {
+    const c = weighted(clubs, x => 10 + x.rep);
+    const p = genPlayer(c.id, pick(['M', 'A', 'A', 'Z', 'L', 'M']), ri(57, 64), ri(16, 17));
+    p.pt = ri(90, 96); p.ct = 3; p.v = valueOf(p); p.sal = salaryFor(p.v);
+    born.push(p);
+  }
+  const star = born.sort((a, b) => b.pt - a.pt)[0];
+  if (star) { news(`🌟 Nasce um fenômeno: ${star.n}, ${star.a} anos, da base do ${C(star.club).name}.`); lines.push(`🌟 A imprensa aponta ${star.n} (${C(star.club).name}, ${star.a} anos) como o novo fenômeno do futebol.`); }
+}
+function prospectsCard() {
+  const list = Object.values(S.players).filter(p => p.club && p.a <= 21).sort((a, b) => b.pt - a.pt || b.r - a.r).slice(0, 10);
+  const stars = p => '★'.repeat(clamp(Math.round((p.pt - 76) / 4), 1, 5));
+  return `<section class="card"><h2>🌟 Promessas do mundo</h2><p class="muted">As 10 maiores promessas (até 21 anos), segundo a imprensa esportiva.</p>
+    <div class="tw"><table><thead><tr><th>Jogador</th><th class="n">Idade</th><th class="n">Força</th><th>Potencial</th><th>Clube</th></tr></thead><tbody>
+    ${list.map(p => `<tr class="${p.id === S.man.pid || p.club === coachClub() ? 'me' : ''}"><td>${posTag(p.p)} ${playerLink(p)}</td><td class="n">${p.a}</td><td class="n">${p.r}</td>
+      <td class="pstars" aria-label="${stars(p).length} de 5">${stars(p)}</td><td>${esc(C(p.club).name)}</td></tr>`).join('')}</tbody></table></div>
+    ${S.legends?.length ? `<h3>👋 Lendas que se despediram</h3><ul>${S.legends.slice(0, 8).map(l => `<li>${esc(l)}</li>`).join('')}</ul>` : ''}</section>`;
+}
+function legendRetires(p, lines) {
+  if (p.r < 82 && (p.tg || 0) < 120) return;
+  const txt = `${p.n} (${p.a} anos, ${p.club ? C(p.club).name : 'sem clube'}) em ${S.year}`;
+  (S.legends ??= []).unshift(txt); S.legends.length = Math.min(S.legends.length, 20);
+  news(`👋 Fim de uma era: ${p.n} se aposenta aos ${p.a} anos.`);
+  lines.push(`👋 Fim de uma era: ${p.n} pendurou as chuteiras.`);
+}
+
+// ===================== Clubes que crescem e quebram =====================
+// Fim da temporada, só clubes da IA: dívida alta vira crise (vende craques, perde reputação e até pontos);
+// caixa saudável atrai investidores (estádio maior, mais dinheiro para contratar)
+function clubFortunes(lines) {
+  const me = coachClub(), owned = new Set((S.man.owned || []).map(o => o.id));
+  const rich = Object.values(S.clubs).filter(c => c.cash > 2e7).sort((a, b) => b.cash - a.cash);
+  for (const c of Object.values(S.clubs)) {
+    if (c.id === me || owned.has(c.id) || c.lg === 'SA') continue;
+    const val = Math.max(squadValue(c), 1e6);
+    // Má gestão: de vez em quando um clube grande descobre um rombo nas contas
+    if (c.rep >= 50 && rnd() < .02) {
+      const debt = niceRound(val * (.8 + rnd() * .6) + Math.max(0, c.cash));
+      c.cash -= debt;
+      news(`📉 Rombo nas contas do ${c.name}: dívida de ${money(debt)} vem à tona.`);
+    }
+    if (c.cash < -Math.max(5e6, .3 * val)) {
+      // Crise: vende os 2 mais valiosos para clubes com dinheiro
+      const sold = [];
+      for (const p of c.pl.map(P).filter(p => p.id !== S.man.pid).sort((a, b) => b.v - a.v).slice(0, 2)) {
+        const b = rich.find(x => x.id !== c.id && x.id !== me && x.cash > p.v && x.pl.length < 32);
+        if (!b) continue;
+        b.cash -= p.v; c.cash += p.v; movePlayer(p, b.id); p.sal = salaryFor(p.v); p.ct = ri(2, 4); sold.push(`${p.n} (${b.name})`);
+        recordTransfer(p, c.id, b.id, p.v);
+      }
+      c.rep = clamp(c.rep - 6, 5, 100);
+      const severe = c.cash < -.6 * val;
+      if (severe) c.penalty = 6; // começa a próxima liga com 6 pontos a menos
+      news(`💸 Crise no ${c.name}: ${sold.length ? `vendeu ${sold.join(' e ')}` : 'sem compradores para os craques'}${severe ? ' e foi punido com a perda de 6 pontos' : ''}.`);
+      if (c.lg === myClub()?.lg) lines.push(`💸 Crise financeira no ${c.name}${severe ? ': punido com -6 pontos na próxima liga' : ''}.`);
+    } else if (c.cash > .4 * val && rnd() < .25) {
+      c.seats = Math.min(95000, Math.round(c.seats * 1.12 / 500) * 500); c.rep = clamp(c.rep + 2, 0, 100);
+      news(`🏗️ ${c.name} amplia o estádio para ${c.seats.toLocaleString('pt-BR')} lugares.`);
+    }
+    if (rnd() < .015 && c.rep < 80) {
+      const inv = niceRound(val * .8 + 2e7);
+      c.cash += inv; c.rep = clamp(c.rep + 6, 0, 100);
+      news(`🤑 Novo dono bilionário compra o ${c.name} e promete ${money(inv)} em reforços.`);
+      if (c.lg === myClub()?.lg) lines.push(`🤑 O ${c.name} tem um novo dono bilionário: prepare-se para um rival mais forte.`);
+    }
+  }
+}
+
+// ===================== Tema claro e escuro =====================
+const THEME_KEY = 'wifoot-tema', THEMES = [['auto', '🌓', 'Automático (do aparelho)'], ['light', '☀️', 'Claro'], ['dark', '🌙', 'Escuro']];
+function themeNow() { try { return localStorage.getItem(THEME_KEY) || 'auto'; } catch { return 'auto'; } }
+function applyTheme(t = themeNow()) {
+  if (t === 'auto') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t;
+}
+function setTheme(t) { try { localStorage.setItem(THEME_KEY, t); } catch {} applyTheme(t); }
+const themeBtn = () => { const t = THEMES.find(x => x[0] === themeNow()) || THEMES[0]; return `<button data-act="themeCycle" title="Tema: ${t[2]}" aria-label="Tema: ${t[2]}. Clique para trocar">${t[1]}</button>`; };
+
 // ===================== Mercado =====================
 function askPrice(p) {
   const club = C(p.club);
@@ -2031,6 +2171,7 @@ function tryBuy(p, fee, sal, yrs) {
   if (sal < dem) return `${p.n} quer ganhar pelo menos ${money(dem)} por semana.`;
   if (p.club) C(p.club).cash += fee;
   me.cash -= fee; S.fin.tout += fee;
+  recordTransfer(p, p.club, me.id, fee);
   const from = p.club ? C(p.club).name : 'livre';
   movePlayer(p, me.id);
   p.sal = sal; p.ct = yrs;
@@ -2305,9 +2446,9 @@ function renderPick() {
 }
 
 const TABS = [['club','🏠 Resumo'],['squad','👕 Elenco'],['tables','📊 Classificação'],['fixtures','📅 Calendário'],['scorers','🥅 Artilharia'],
-  ['market','🔁 Transferências'],['finance','💰 Finanças'],['inbox','✉️ Mensagens'],['trophies','🏆 Troféus'],['ranking','🌎 Ranking Mundial'],['history','📜 Histórico'],['game','⚙️ Jogo']];
+  ['market','🔁 Transferências'],['finance','💰 Finanças'],['inbox','✉️ Mensagens'],['trophies','🏆 Troféus'],['ranking','🌎 Ranking Mundial'],['history','📜 Histórico e recordes'],['game','⚙️ Jogo']];
 const TABS_CAREER = [['career','👟 Carreira'],['wealth','💰 Finanças'],['tables','📊 Classificação'],['fixtures','📅 Calendário'],['scorers','🥅 Artilharia'],
-  ['inbox','✉️ Mensagens'],['trophies','🏆 Troféus'],['ranking','🌎 Ranking Mundial'],['history','📜 Histórico'],['game','⚙️ Jogo']];
+  ['inbox','✉️ Mensagens'],['trophies','🏆 Troféus'],['ranking','🌎 Ranking Mundial'],['history','📜 Histórico e recordes'],['game','⚙️ Jogo']];
 const EV_NAME = {C:'Copa nacional', E:NAMES.EU, S:`${NAMES.LIB} / ${NAMES.SUL}`, W:NAMES.SMW, M:NAMES.INT};
 // Vagas para competições continentais na tabela da 1ª divisão
 const contSpots = lg => CONMEBOL.has(lg) ? LIB_Q[lg] || 1 : LEAGUES[lg].conf === 'UEFA' ? 2 : 0;
@@ -2335,7 +2476,7 @@ function header() {
     <div class="bar-chips"><button class="${unread ? 'unread' : ''}" data-act="tab" data-tab="inbox" aria-label="Mensagens${unread ? `: ${unread} nova${unread > 1 ? 's' : ''}` : ''}">✉️${unread ? ` ${unread}` : ''}</button>
     <span>💰 ${money(career ? S.man.money : c.cash)}</span>
     <span>📅 Semana ${S.slot + 1}/${S.cal.length} · ${esc(what)}</span>
-    <span>${isWindow(S.slot) ? '🔓 Janela aberta' : '🔒 Janela fechada'}</span></div></header>`;
+    <span>${isWindow(S.slot) ? '🔓 Janela aberta' : '🔒 Janela fechada'}</span>${themeBtn()}</div></header>`;
 }
 function renderGame() {
   // Treinador ex-jogador (ou com patrimônio pessoal) ganha a aba de finanças pessoais
@@ -2716,14 +2857,16 @@ const VIEWS = {
       <dl class="kv">${isCareer() ? `<dt>Jogador</dt><dd>${esc(S.man.name)}</dd>` : `<dt>Treinador</dt><dd>${esc(S.man.name)}</dd><dt>Reputação</dt><dd>${S.man.rep}/100</dd>`}</dl>${seasons}
       <h3 style="margin-top:.8rem">Títulos</h3>${S.man.titles.length ? `<ul>${S.man.titles.map(t => `<li>🏆 ${esc(t)}</li>`).join('')}</ul>` : '<p class="muted">Nenhum ainda.</p>'}
       <h3>Trajetória</h3><ul>${S.man.history.map(t => `<li>${esc(t)}</li>`).join('')}</ul></section>
-      <section class="card tw"><h2>Campeões</h2>${rows ? `<table><thead><tr><th>Ano</th><th>País</th><th>1ª divisão</th><th>Acesso</th><th>Copa</th></tr></thead><tbody>${rows}</tbody></table>` : '<p class="muted">Termine uma temporada para ver os campeões.</p>'}</section></div>`;
+      <section class="card tw"><h2>Campeões</h2>${rows ? `<table><thead><tr><th>Ano</th><th>País</th><th>1ª divisão</th><th>Acesso</th><th>Copa</th></tr></thead><tbody>${rows}</tbody></table>` : '<p class="muted">Termine uma temporada para ver os campeões.</p>'}</section></div>
+      <div class="grid2">${recordsCard()}${prospectsCard()}</div>`;
   },
 
   game() {
     return `<section class="card"><h2>Jogo</h2><p class="muted">O jogo é salvo automaticamente no navegador depois de cada rodada.</p>
       <div class="row"><button data-act="save">Salvar agora</button><button data-act="export">Exportar arquivo de jogo</button>
       <label class="filebtn">📂 Importar arquivo de jogo<input type="file" id="import" accept="application/json,.json"></label>
-      <button class="danger" data-act="quit">Voltar à tela inicial</button></div></section>
+      <button class="danger" data-act="quit">Voltar à tela inicial</button></div>
+      <label style="margin-top:.8rem">Tema<select data-chg="theme">${THEMES.map(([k, ic, n]) => `<option value="${k}" ${themeNow() === k ? 'selected' : ''}>${ic} ${n}</option>`).join('')}</select></label></section>
       <section class="card"><h2>Como jogar</h2><ul>
       <li><strong>Elenco:</strong> escolha 11 titulares e até 7 reservas. Jogador fora de posição rende menos.</li>
       <li><strong>Energia:</strong> cai durante os jogos e recupera durante a semana. Faça rodízio.</li>
@@ -2916,6 +3059,7 @@ const ACT = {
       .catch(e => notify('Não foi possível carregar: ' + e.message));
   },
   slotPick(d) { UI.slot = +d.n; UI.delSlot = null; render(); },
+  themeCycle() { const i = THEMES.findIndex(x => x[0] === themeNow()); setTheme(THEMES[(i + 1) % THEMES.length][0]); toast(`Tema: ${THEMES[(i + 1) % THEMES.length][2]}`); render(); },
   simMenu() {
     openDlg(`<h2 id="dlg-title">⏩ Simular até...</h2><p class="muted">Os jogos são simulados sem a tela ao vivo. A simulação para antes se chegar uma proposta, se a escalação tiver problema ou se você ficar sem clube.</p>
       <div class="simopts">${Object.entries(SIM_TARGETS).map(([k, t]) => `<button class="primary" data-act="simUntil" data-t="${k}">Até ${t}</button>`).join('')}</div>`);
@@ -3162,6 +3306,7 @@ const ACT = {
     else if (!b || b.cash < m.amount) m.done = 'o comprador desistiu';
     else {
       b.cash -= m.amount; me.cash += m.amount; S.fin.tin += m.amount;
+      recordTransfer(p, me.id, b.id, m.amount);
       movePlayer(p, b.id); p.sal = salaryFor(p.v); p.ct = ri(2, 4);
       news(`${p.n} foi vendido ao ${b.name} por ${money(m.amount)}.`);
       m.done = 'aceita';
@@ -3245,6 +3390,7 @@ const CHG = {
   rankConf(v) { UI.rankConf = v; render(); },
   awLg(v) { UI.awLg = v; render(); },
   scoutLg(v) { UI.scoutLg = v; render(); },
+  theme(v) { setTheme(v); render(); },
   buyLg(v) { UI.buyLg = v; render(); },
   liveSpeed(v) { UI.live.speed = +v; },
   liveForm(v) { const m = UI.live.um, s = m.s[m.user]; s.tac.f = v; s.dirty = true; },
@@ -3309,6 +3455,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.cl
 
 // Carrega o jogo salvo antes da primeira tela
 // Quais espaços têm jogo salvo (o conteúdo só é lido ao clicar em Continuar)
+applyTheme();
 Promise.all(SLOTS.map(n => idb('readonly', st => st.count(slotKey(n))).then(c => [n, c > 0]).catch(() => [n, false])))
   .then(r => { UI.has = Object.fromEntries(r); }).finally(render);
 </script>
