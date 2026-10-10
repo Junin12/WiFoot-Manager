@@ -8,3 +8,8 @@ appsscript/Index.html
 appsscript/Dados.html
 # Pacote com nomes reais: fica só no Google Drive e no Apps Script (fora do GitHub)
 data_real.js
+# Banco de origem com nomes reais: fica só no computador e no Google Drive (wifoot-banco-nomes-reais.zip)
+db/ligas.json
+db/elencos.json
+db/wikidata.json
+db/wifoot-db.json

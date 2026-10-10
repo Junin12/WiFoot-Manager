@@ -1,12 +1,13 @@
 # Banco de dados do WiFoot Manager
 
-Banco montado só com **dados abertos**, para poder ser publicado no GitHub e usado na versão comercial.
+Banco montado só com **dados abertos**. Os arquivos com **nomes reais não ficam no GitHub**: são gerados pelos scripts de `tools/` e guardados no computador e no Google Drive (pasta "WiFoot Manager — dados", arquivo `wifoot-banco-nomes-reais.zip`). Para trabalhar em outro computador, descompacte esse zip na pasta do jogo.
 
-| Arquivo | O que é |
-|---|---|
-| `wifoot-db.json` | Banco completo com nomes reais: ligas, clubes (cidade, estádio, capacidade, fundação) e jogadores (posição, nascimento, nacionalidade, altura, força, valor, salário). |
-| `ligas.json`, `elencos.json`, `wikidata.json` | Etapas intermediárias da coleta. |
-| `cache/` | Respostas brutas das APIs (não versionado). |
+| Arquivo | O que é | No GitHub? |
+|---|---|---|
+| `wifoot-db.json` | Banco completo com nomes reais: ligas, clubes (cidade, estádio, capacidade, fundação) e jogadores (posição, nascimento, nacionalidade, altura, força, valor, salário). | Não |
+| `ligas.json`, `elencos.json`, `wikidata.json` | Etapas intermediárias da coleta. | Não |
+| `cores.json` | Duas cores de cada clube, pelo código do Wikidata. | Sim |
+| `cache/` | Respostas brutas das APIs. | Não |
 
 ## Fontes e licenças
 
