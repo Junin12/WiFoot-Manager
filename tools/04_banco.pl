@@ -31,6 +31,7 @@ my $ligas = W::load('db/ligas.json');
 my $el = W::load('db/elencos.json');
 my $wd = W::load('db/wikidata.json');
 my ($P, $T2Q, $CL, $LAB) = @$wd{qw(players title2qid clubs labels)};
+my $COR = -e "$W::ROOT/db/cores.json" ? W::load("db/cores.json") : {}; # passo 3b
 
 # Nacionalidade: código FIFA (BRA) ou nome em inglês -> nome em português
 my %natPt;
@@ -124,7 +125,7 @@ for my $lg (@$ligas) {
         birth => $p->{birth}, nat => $p->{nat}, height => $p->{height}, force => $r, value => $v, wage => max(1000, 100 * int($v * .0016 / 100 + .5))};
     }
     push @clubs, {id => $cid++, qid => $c->{qid}, name => $c->{name}, wiki => $c->{wiki}, league => $c->{league}, tier => $c->{tier},
-      city => $c->{city}, stadium => $c->{stadium}, seats => $c->{seats}, founded => $c->{founded}, level => sprintf('%.1f', $lvl) + 0};
+      city => $c->{city}, stadium => $c->{stadium}, seats => $c->{seats}, founded => $c->{founded}, level => sprintf('%.1f', $lvl) + 0, ($COR->{$c->{qid}} ? (colors => $COR->{$c->{qid}}) : ())};
   }
 }
 W::save('db/wifoot-db.json', {

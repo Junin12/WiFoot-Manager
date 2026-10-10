@@ -26,7 +26,7 @@ São **estimativas próprias do jogo**, calculadas em `tools/04_banco.pl`:
 
 ## Versões de distribuição
 
-- `data.js`: **nomes fictícios** de clubes, jogadores, estádios, ligas e copas continentais, com as mesmas forças, idades, posições, nacionalidades e capacidades. É a versão para a loja de aplicativos.
+- `data.js`: **nomes fictícios** de clubes, jogadores, estádios, ligas e copas continentais, com as mesmas forças, idades, posições, nacionalidades e capacidades. Os nomes lembram os reais sem repeti-los: clube com o mesmo começo e as mesmas duas cores (Cruzeiro vira "Cruzense Azul de Belo Horizonte"), jogador com as mesmas iniciais e outros nomes (Kaio Jorge vira algo como "Kiko Joabe"). É a versão para a loja de aplicativos.
 - `data_real.js`: **nomes reais**, pacote opcional e gratuito, distribuído separado do aplicativo. Se o arquivo estiver na pasta do jogo, ele é usado no lugar do fictício.
 
 Nomes reais de jogadores e marcas de clubes e competições podem exigir autorização para uso comercial (direito de imagem e marcas registradas). Por isso a versão comercial usa só o `data.js`.
@@ -40,6 +40,7 @@ cd tools
 perl 01_ligas.pl      # participantes das ligas na temporada atual
 perl 02_elencos.pl    # elencos atuais dos clubes
 perl 03_wikidata.pl   # dados dos jogadores e clubes
+perl 03b_cores.pl     # duas cores de cada clube (Wikidata e uniforme 1 da Wikipédia)
 perl 04_banco.pl      # monta db/wifoot-db.json e estima força, valor e salário
 perl 05_pacotes.pl    # gera data.js (fictício) e data_real.js (real)
 ```
