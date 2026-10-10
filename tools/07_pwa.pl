@@ -31,7 +31,7 @@ put("$root/docs/manifest.webmanifest", <<'JSON');
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#e4f1e7",
+  "background_color": "#03130c",
   "theme_color": "#1f8a4c",
   "icons": [
     {"src": "icon-192.png", "sizes": "192x192", "type": "image/png"},

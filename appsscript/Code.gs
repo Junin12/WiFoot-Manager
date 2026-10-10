@@ -3,6 +3,7 @@
 function doGet() {
   return HtmlService.createTemplateFromFile('Index').evaluate()
     .setTitle('WiFoot Manager')
+    .setFaviconUrl('https://junin12.github.io/WiFoot-Manager/icon-192.png') // ícone do app (publicado no GitHub Pages)
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 
