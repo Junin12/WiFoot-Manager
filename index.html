@@ -196,6 +196,9 @@ button.big{padding:.75rem 2.2rem;font-size:1.05rem;border-radius:12px}
 .slot.sel{border-color:var(--brand);box-shadow:0 0 0 2px var(--brand) inset}
 .slot-pick{all:unset;cursor:pointer;display:grid;gap:.1rem;min-width:0;flex:1 1 12rem}
 .slot-pick:focus-visible{outline:2px solid var(--brand);outline-offset:3px;border-radius:6px}
+.simopts{display:grid;gap:.5rem}
+.simlog{max-height:45vh;overflow:auto;padding-left:1.1rem;margin:.4rem 0}
+.simlog li{margin:.2rem 0}
 /* ---------- galeria de troféus ---------- */
 .trophies{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(230px,100%),1fr));gap:.6rem}
 .trophy{display:flex;gap:.7rem;align-items:center;padding:.65rem .8rem;border:1px solid var(--line);border-radius:var(--r);background:var(--tint);min-width:0}
@@ -1057,6 +1060,7 @@ function finishSlot(matches, um) {
   S.man.recap = recapLine(um, ev, matches);
   UI.results = {ev, matches, um, year: S.year, recap: S.man.recap};
   postSlot(ev);
+  if (UI.bulk) { if (um && S.man.recap) UI.bulk.push(S.man.recap); return; } // "Simular até...": sem tela de resultados
   UI.screen = 'results';
   save();
   render();
@@ -1261,7 +1265,7 @@ function endSeason() {
   const myPos = standings(myDiv).indexOf(me) + 1;
   const career = isCareer(), mine = coachClub(), pid = S.man.pid;
   const ok = !career && myPos <= S.man.obj.target;
-  const awLines = []; seasonAwards(awLines); seasonGoalsEnd(awLines); // antes do acesso e rebaixamento mexerem nas divisões
+  const awLines = []; seasonAwards(awLines); seasonGoalsEnd(awLines); rivalSeasonEnd(awLines); // antes do acesso e rebaixamento mexerem nas divisões
   const euroNext = [], thirds = [], saLib = [], saSul = [];
   for (const lg of Object.keys(LEAGUES)) {
     const d1 = S.divs[divKey(lg, 1)], d2 = S.divs[divKey(lg, 2)], t1 = standings(d1), t2 = standings(d2), k = promoCount(lg);
@@ -1840,6 +1844,101 @@ const SLOTS = [1, 2, 3];
 const slotKey = n => n === 1 ? SAVE_KEY : `${SAVE_KEY}-${n}`; // o espaço 1 usa a chave antiga (jogos salvos continuam valendo)
 function slotMeta(n) { try { return JSON.parse(localStorage.getItem(slotKey(n) + '-meta')); } catch { return null; } }
 
+// ===================== Rival pessoal (Modo Carreira) =====================
+// Outro jogador da mesma posição e idade parecida; a cada temporada o jogo compara gols, títulos e prêmios
+function myRival() {
+  const me = me_p();
+  if (!isCareer() || !me) return null;
+  let r = P(S.man.rival);
+  if (r && r.club) return r;
+  const cands = Object.values(S.players).filter(p => p.id !== me.id && p.club && p.p === me.p && Math.abs(p.a - me.a) <= 1 && p.pt >= me.pt - 4);
+  if (!cands.length) return null;
+  r = cands.sort((a, b) => Math.abs(a.r - me.r) - Math.abs(b.r - me.r))[0];
+  S.man.rival = r.id;
+  S.man.rivalSt = {g: 0, t: 0, aw: 0, since: S.year, base: {g: S.man.stats.g, t: S.man.titles.length, aw: (S.man.awards || []).length}};
+  news(`A imprensa já compara ${me.n} e ${r.n} (${C(r.club).name}): começa uma rivalidade.`);
+  return r;
+}
+function rivalCard() {
+  const r = myRival(), me = me_p();
+  if (!r) return '';
+  const st = S.man.rivalSt, b = st.base;
+  const mine = {g: S.man.stats.g - b.g + me.g, t: S.man.titles.length - b.t, aw: (S.man.awards || []).length - b.aw};
+  const theirs = {g: st.g + r.g, t: st.t, aw: st.aw};
+  const row = (label, a, z, fmt = v => v) => `<tr><td>${label}</td><td class="n ${a > z ? 'good f' : ''}">${fmt(a)}</td><td class="n ${z > a ? 'bad f' : ''}">${fmt(z)}</td></tr>`;
+  const lead = [mine.g - theirs.g, mine.t - theirs.t, mine.aw - theirs.aw, me.r - r.r].reduce((s, d) => s + Math.sign(d), 0);
+  return `<section class="card"><h2>🆚 Seu rival: ${playerLink(r)}</h2>
+    <p class="muted">${posTag(r.p)} ${r.a} anos · ${esc(C(r.club).name)} · comparação desde ${st.since}. ${lead > 0 ? '<span class="good">Você está levando a melhor.</span>' : lead < 0 ? '<span class="bad">Ele está na frente: hora de reagir.</span>' : 'Duelo equilibrado.'}</p>
+    <div class="tw"><table><thead><tr><th></th><th class="n">Você</th><th class="n">${esc(r.n)}</th></tr></thead><tbody>
+    ${row('Força', me.r, r.r)}${row('Gols na temporada', me.g, r.g)}${row('Gols no duelo', mine.g, theirs.g)}${row('Títulos', mine.t, theirs.t)}${row('Prêmios individuais', mine.aw, theirs.aw)}${row('Valor de mercado', me.v, r.v, money)}
+    </tbody></table></div></section>`;
+}
+// Fim da temporada: soma os gols, títulos e prêmios do rival (antes do acesso e rebaixamento)
+function rivalSeasonEnd(lines) {
+  const r = isCareer() && P(S.man.rival);
+  if (!r) return;
+  const st = S.man.rivalSt, c = r.club, lg = c && C(c).lg;
+  let t = 0;
+  if (c) {
+    if (C(c).tier === 1 && standings(S.divs[divKey(lg, 1)])[0] === c) t++;
+    if (S.cups.nat[lg]?.champ === c) t++;
+    if (S.cups.euro?.champ === c) t++;
+    for (const tour of Object.values(S.tours)) if (tour.champ === c) t++;
+  }
+  const y = S.awards?.[0], aw = y ? [...Object.values(y.world), ...Object.values(y.lg).flatMap(o => Object.values(o))].filter(a => a.pid === r.id).length : 0;
+  st.g += r.g; st.t += t; st.aw += aw;
+  const me = me_p();
+  lines.push(`🆚 Rival: ${r.n} fez ${r.g} gols${t ? ` e ganhou ${t} título(s)` : ''}${aw ? ` e ${aw} prêmio(s)` : ''}; você fez ${me.g} gols.`);
+}
+
+// ===================== Simular até... =====================
+// Simula semanas sem jogo ao vivo e para quando algo pede decisão do jogador
+const SIM_TARGETS = {big: 'o próximo jogo importante', window: 'a próxima janela de transferências', season: 'o fim da temporada'};
+function bigMatch(n) {
+  if (!n || n.s !== S.slot) return false;
+  if (n.h && n.a && isDerby(n.h, n.a)) return true;
+  if (n.kind === 'C') return S.cups.nat[myClub().lg].alive.length <= 4; // copa nacional: só semifinal e final
+  if (n.kind === 'E') return S.cups.euro.alive.length <= 8; // Europa 1: das quartas em diante
+  const t = S.tours[n.kind];
+  return !!t && t.plan[t.step]?.[0] !== 'G'; // torneios com grupos: só o mata-mata
+}
+function simUntil(target) {
+  const decisions = () => S.inbox.filter(m => !m.read && ['offer', 'pOffer', 'job'].includes(m.type) && !m.done).length;
+  const startDec = decisions(), startWin = isWindow(S.slot), log = [];
+  let why = '', weeks = 0, fixes = 0, leftWindow = !startWin;
+  UI.bulk = log;
+  try {
+    while (weeks < 120) {
+      if (S.slot >= S.cal.length) { why = 'season'; break; }
+      if (!S.man.club) { why = 'noclub'; break; }
+      if (target === 'big' && bigMatch(nextMatch())) { why = weeks ? 'big' : 'bignow'; break; }
+      if (target === 'window') { if (!isWindow(S.slot)) leftWindow = true; else if (leftWindow) { why = 'window'; break; } }
+      const club = myClub();
+      if (!isCareer()) {
+        if (!S.sponsor) { S.sponsor = S.sponsorOffers[0]; news(`Sem escolha do treinador, a diretoria assinou com ${S.sponsor.n} (valor fixo).`); }
+        club.xi = club.xi.filter(id => club.pl.includes(id)); club.bench = club.bench.filter(id => club.pl.includes(id));
+        if (lineupProblems(club).length) { autoPick(club); fixes++; } // lesão ou suspensão: o auxiliar ajusta a escalação
+        if (lineupProblems(club).length) { why = 'lineup'; break; }
+      }
+      const matches = slotMatches();
+      matches.forEach(simulate);
+      finishSlot(matches, matches.find(m => m.h === club.id || m.a === club.id) || null);
+      weeks++;
+      if (decisions() > startDec) { why = 'mail'; break; }
+    }
+  } finally { UI.bulk = null; }
+  UI.results = null; UI.screen = 'game';
+  save();
+  if (why === 'season' && S.man.club) { endSeason(); render(); return; }
+  render();
+  const msg = {big: 'Parei antes do próximo jogo importante: jogue-o ao vivo.', bignow: 'O próximo jogo já é importante: jogue-o ao vivo.', window: 'A janela de transferências abriu.',
+    mail: 'Chegou uma proposta: veja em Mensagens.', lineup: 'A escalação tem problemas: corrija no Elenco (ou use a escalação automática).', noclub: 'Você está sem clube.', season: ''}[why] || 'Simulação concluída.';
+  openDlg(`<h2 id="dlg-title">⏩ ${weeks} semana(s) simulada(s)</h2><p><strong>${esc(msg)}</strong></p>
+    ${fixes ? `<p class="muted">O auxiliar ajustou a escalação ${fixes} vez(es) por lesão ou suspensão.</p>` : ''}
+    ${log.length ? `<ul class="simlog">${log.map(l => `<li>${esc(l)}</li>`).join('')}</ul>` : '<p class="muted">Seu time não jogou nesse período.</p>'}
+    ${why === 'mail' ? '<p><button class="primary" data-act="simInbox">Ver mensagens</button></p>' : why === 'lineup' ? '<p><button class="primary" data-act="goSquad">Corrigir no elenco</button></p>' : ''}`);
+}
+
 // ===================== Mercado =====================
 function askPrice(p) {
   const club = C(p.club);
@@ -2149,6 +2248,7 @@ function header() {
   const career = isCareer();
   return `<header class="bar"><div class="bar-main">${crest(c.id)}
     <div class="who"><strong>${esc(career ? S.man.name : c.name)}</strong><small>${career ? esc(c.name) + ' · ' : ''}Temporada ${S.year}/${String(S.year + 1).slice(2)}</small></div>
+    <button class="go" data-act="simMenu" title="Simular várias semanas" aria-label="Simular até...">⏩</button>
     <button class="primary go" data-act="advance">Continuar ▶</button></div>
     <div class="bar-chips"><button class="${unread ? 'unread' : ''}" data-act="tab" data-tab="inbox" aria-label="Mensagens${unread ? `: ${unread} nova${unread > 1 ? 's' : ''}` : ''}">✉️${unread ? ` ${unread}` : ''}</button>
     <span>💰 ${money(career ? S.man.money : c.cash)}</span>
@@ -2266,6 +2366,7 @@ const VIEWS = {
           ${p.a >= 33 ? '<button class="danger" data-act="retireAsk">Encerrar carreira</button>' : ''}</div>
         <p class="muted">Propostas chegam pela caixa de mensagens nas janelas de transferência (${windowText()}).</p></section>
       <section class="card"><h2>Classificação</h2>${miniTable(d, c.id)}</section></div>
+      ${rivalCard()}
       <div class="grid2">${goalsCard()}${chartsCard()}</div>
       <details class="card"><summary>Últimas notícias</summary>${newsList(10)}</details>`;
   },
@@ -2733,6 +2834,12 @@ const ACT = {
       .catch(e => notify('Não foi possível carregar: ' + e.message));
   },
   slotPick(d) { UI.slot = +d.n; UI.delSlot = null; render(); },
+  simMenu() {
+    openDlg(`<h2 id="dlg-title">⏩ Simular até...</h2><p class="muted">Os jogos são simulados sem a tela ao vivo. A simulação para antes se chegar uma proposta, se a escalação tiver problema ou se você ficar sem clube.</p>
+      <div class="simopts">${Object.entries(SIM_TARGETS).map(([k, t]) => `<button class="primary" data-act="simUntil" data-t="${k}">Até ${t}</button>`).join('')}</div>`);
+  },
+  simUntil(d) { closeDlg(); simUntil(d.t); },
+  simInbox() { closeDlg(); UI.tab = 'inbox'; render(); },
   slotDel(d) { UI.delSlot = +d.n; render(); },
   slotDelOk(d) {
     const n = +d.n;

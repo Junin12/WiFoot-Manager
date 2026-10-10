@@ -13,7 +13,8 @@ Abra o `index.html` no navegador (dois cliques). O progresso é salvo automatica
 - **Prêmios e troféus:** no fim de cada temporada saem o melhor jogador, a revelação, o artilheiro e o goleiro menos vazado de cada liga e do mundo, além do técnico do ano. A aba Troféus guarda tudo o que você conquistou pelo clube e individualmente, além de 16 conquistas permanentes.
 - **Para jogar sem se perder:** três metas por temporada com prêmio, resumo da rodada em uma linha, dicas do auxiliar, gráfico da posição na liga (e da força e do patrimônio no Modo Carreira) e três espaços de jogo salvo.
 - **Emoção:** clássicos contra o rival da cidade (moral e torcida em dobro), momentos decisivos no jogo ao vivo (pênaltis, faltas e reta final) e palestra no intervalo.
-- **Modo Carreira:** convocação para a seleção, Mundial de Seleções a cada 4 anos, camisa 10 e braçadeira de capitão.
+- **Modo Carreira:** convocação para a seleção, Mundial de Seleções a cada 4 anos, camisa 10 e braçadeira de capitão, e um rival pessoal (mesma posição e idade) comparado temporada a temporada.
+- **Simular até... (⏩):** avança até o próximo jogo importante, a próxima janela de transferências ou o fim da temporada, parando quando algo pede decisão.
 - **Treinador:** olheiros revelam o potencial escondido dos jogadores de outros clubes, e a torcida reage aos resultados e ao preço do ingresso.
 - **Hall da Fama:** quem passa muitos anos num clube vira ídolo e entra na história dele.
 
