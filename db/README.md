@@ -27,7 +27,7 @@ São **estimativas próprias do jogo**, calculadas em `tools/04_banco.pl`:
 ## Versões de distribuição
 
 - `data.js`: **nomes fictícios** de clubes, jogadores, estádios, ligas e copas continentais, com as mesmas forças, idades, posições, nacionalidades e capacidades. Os nomes lembram os reais sem repeti-los: clube com o mesmo começo e as mesmas duas cores (Cruzeiro vira "Cruzense Azul de Belo Horizonte"), jogador com as mesmas iniciais e outros nomes (Kaio Jorge vira algo como "Kiko Joabe"). É a versão para a loja de aplicativos.
-- `data_real.js`: **nomes reais**, pacote opcional e gratuito, distribuído separado do aplicativo. Se o arquivo estiver na pasta do jogo, ele é usado no lugar do fictício.
+- `data_real.js`: **nomes reais**, pacote opcional e gratuito, distribuído separado do aplicativo (fica fora do GitHub; há uma cópia no Google Drive). Se o arquivo estiver na pasta do jogo, ele é usado no lugar do fictício.
 
 Nomes reais de jogadores e marcas de clubes e competições podem exigir autorização para uso comercial (direito de imagem e marcas registradas). Por isso a versão comercial usa só o `data.js`.
 

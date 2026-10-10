@@ -39,7 +39,9 @@ Abra o `index.html` no navegador (dois cliques). O progresso é salvo automatica
 |---|---|
 | `index.html` | O jogo inteiro |
 | `data.js` | Base com **nomes fictícios** (clubes, jogadores, estádios, ligas e copas). Versão para distribuição comercial. |
-| `data_real.js` | Pacote opcional com **nomes reais**. Se estiver na pasta, é usado no lugar do `data.js`. Distribuição gratuita, separada do aplicativo. |
+| `data_real.js` | Pacote opcional com **nomes reais**, gerado por `tools/05_pacotes.pl`. **Não fica no GitHub**: só no computador, no projeto Apps Script e na pasta "WiFoot Manager — dados" do Google Drive. Se estiver na pasta, é usado no lugar do `data.js`. |
+| `loja/` | Material da Google Play: textos, respostas dos formulários, capturas e imagem de destaque ([loja/LEIA-ME.md](loja/LEIA-ME.md)) |
+| `docs/privacidade.html` | Política de privacidade (exigida pela loja) |
 | `db/` | Banco de dados completo e documentação das fontes ([db/README.md](db/README.md)) |
 | `tools/` | Scripts que coletam e atualizam o banco |
 

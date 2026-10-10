@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Captura de tela para a loja</title>
+<!-- Usado por tools/capturas.ps1: abre o jogo (versão fictícia de docs/) e monta a tela pedida em ?tela=... -->
+<style>
+html,body{margin:0;width:1080px;height:2160px;overflow:hidden;background:#04170f}
+/* o jogo em largura de celular (412 px), ampliado para 1080 x 2160 */
+iframe{border:0;display:block;width:412px;height:824px;transform:scale(2.62136);transform-origin:0 0}
+</style>
+</head>
+<body>
+<iframe id="f" src="../docs/index.html" title="WiFoot Manager"></iframe>
+<script>
+const tela = new URLSearchParams(location.search).get('tela') || 'inicio';
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const f = document.getElementById('f');
+f.onload = async () => {
+  const w = f.contentWindow, G = s => w.eval(s); // acessa as variáveis do jogo dentro do iframe
+  for (const k of ['coach', 'player']) w.localStorage.setItem('wifoot-tutorial-' + k, '1');
+  // espera a tela inicial (no modo headless o IndexedDB pode demorar: depois de 3 s desenha mesmo assim)
+  for (let i = 0; i < 30 && !w.document.querySelector('.ts'); i++) await sleep(100);
+  if (!w.document.querySelector('.ts')) { G('UI.has = {}; render()'); await sleep(300); }
+  if (tela === 'inicio') return;
+  const mode = tela === 'carreira' ? 'player' : 'coach';
+  w.document.querySelector(`[data-mode="${mode}"]`).click();
+  const club = G(`Object.values(S.clubs).filter(c => c.lg === 'BR1' && c.tier === 1).sort((a, b) => b.rep - a.rep)[0]`);
+  G('ACT').pickClub({id: club.id});
+  w.document.getElementById('mname').value = mode === 'player' ? 'Rafael Lima' : 'Paulo Mendes';
+  G('ACT').startCareer();
+  if (mode === 'player') { const p = G('me_p()'); p.r = 78; p.pt = 90; p.a = 21; }
+  // algumas rodadas simuladas para encher tabela, gráficos e notícias
+  const rounds = tela === 'partida' ? 3 : 8;
+  for (let i = 0; i < rounds; i++) { G('closeDlg()'); G('S.inbox.forEach(m => m.read = true)'); G(`(() => { const ms = slotMatches(); ms.forEach(simulate); finishSlot(ms, ms.find(m => m.h === S.man.club || m.a === S.man.club) || null); UI.screen = 'game'; })()`); }
+  G('UI.results = null; UI.screen = "game"; if (!isCareer() && !S.sponsor) S.sponsor = S.sponsorOffers[0]');
+  if (tela === 'resumo') { G(`UI.tab = 'club'; render()`); }
+  if (tela === 'elenco') { G(`UI.tab = 'squad'; autoPick(myClub()); myClub().tac.i = 'press'; render()`); }
+  if (tela === 'carreira') { G(`UI.tab = 'career'; render()`); }
+  if (tela === 'partida' || tela === 'resultado') {
+    G(`autoPick(myClub()); localStorage.setItem('wifoot-partida', 'live'); advance()`);
+    const L = G('UI.live');
+    if (!L) return;
+    clearTimeout(L.timer); L.speed = 0;
+    for (let g = 0; g < 200; g++) {
+      if (tela === 'partida' && L.um.min >= 52 && L.um.gh + L.um.ga >= 1) { L.paused = true; L.speed = 220; G('updateLive(); renderLiveControls()'); break; }
+      if (L.um.done) { G('ACT.liveFinish()'); break; }
+      L.paused = false; L.moment = null; L.ht = true; L.talked = true;
+      for (const m of L.group) G('step')(m);
+    }
+    if (tela === 'resultado') w.document.querySelectorAll('details').forEach(d => { if (/Notas/.test(d.textContent)) d.open = true; });
+  }
+  if (tela === 'trofeus') { G(`UI.tab = 'history'; render()`); }
+  w.scrollTo(0, 0);
+};
+</script>
+</body>
+</html>

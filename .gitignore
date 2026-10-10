@@ -6,3 +6,5 @@ data_pool.js
 # Gerados por tools/06_appsscript.pl
 appsscript/Index.html
 appsscript/Dados.html
+# Pacote com nomes reais: fica só no Google Drive e no Apps Script (fora do GitHub)
+data_real.js

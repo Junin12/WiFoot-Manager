@@ -266,6 +266,8 @@ button.big{padding:.75rem 2.2rem;font-size:1.05rem;border-radius:12px}
 .shirt{font-size:.85em;color:var(--muted);font-variant-numeric:tabular-nums}
 .chip-derby{background:#b3261e;color:#fff}
 .simopts{display:grid;gap:.5rem}
+.about .ts-logo{width:64px;height:auto;float:right;margin:0 0 .5rem .8rem;animation:none}
+.about ul{padding-left:1.1rem}
 /* ---------- notas, Time do Ano, características, campinho e tutorial ---------- */
 .rt-hi{color:var(--good);font-weight:700}.rt-ok{color:var(--ink)}.rt-lo{color:var(--bad)}
 .rts{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.4rem}
@@ -2420,6 +2422,23 @@ function setPref(k, v) { try { localStorage.setItem(k, v); } catch {} }
 function applyFont() { document.documentElement.style.fontSize = `${100 * +pref(FONT_KEY, '1')}%`; }
 const quickMode = () => pref(MATCH_KEY, 'live') === 'quick';
 
+// ===================== Sobre o jogo =====================
+const PRIVACY_URL = 'https://junin12.github.io/WiFoot-Manager/privacidade.html';
+function aboutHtml() {
+  const fict = !window.GAME_DATA_REAL;
+  return `<div class="about">${LOGO_SVG}
+    <p><strong>WiFoot Manager</strong> · base de dados ${esc(String(D.version || ''))} · ${D.leagues.length} ligas, ${D.clubs.length} clubes</p>
+    <p>${fict ? 'Todos os clubes, jogadores, estádios, ligas e competições têm <strong>nomes fictícios</strong>. Qualquer semelhança de nomes com pessoas ou entidades reais é coincidência; o jogo não tem relação com clubes, ligas ou federações.'
+      : 'Esta versão usa o pacote opcional com nomes reais, distribuído separadamente e sem fins comerciais.'}</p>
+    <h3>Créditos dos dados</h3>
+    <ul><li>Elencos e informações de clubes: <a href="https://pt.wikipedia.org/" target="_blank" rel="noopener">Wikipédia</a>, licença <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.pt-br" target="_blank" rel="noopener">CC BY-SA 4.0</a>.</li>
+      <li>Datas, posições, nacionalidades e cores: <a href="https://www.wikidata.org/" target="_blank" rel="noopener">Wikidata</a>, domínio público (CC0).</li>
+      <li>Força, valor de mercado, salário e potencial são estimativas do próprio jogo.</li></ul>
+    <h3>Privacidade</h3>
+    <p>O jogo não pede cadastro e não coleta dados pessoais: os jogos salvos ficam só no seu aparelho. <a href="${PRIVACY_URL}" target="_blank" rel="noopener">Política de privacidade</a>.</p>
+    <p class="muted">Código e notas: <a href="https://github.com/Junin12/WiFoot-Manager" target="_blank" rel="noopener">github.com/Junin12/WiFoot-Manager</a></p></div>`;
+}
+
 // ===================== Mercado =====================
 function askPrice(p) {
   const club = C(p.club);
@@ -2695,7 +2714,7 @@ function renderStart() {
       <section class="ts-saves" aria-labelledby="ts-saves-t"><h2 id="ts-saves-t">Jogos salvos</h2>
         <div class="ts-slots">${slots}</div>
         <p class="ts-note">Um jogo novo vai para o <strong>Espaço ${UI.slot}</strong>${meta(UI.slot) ? ' e substitui o jogo que está nele' : ''}.</p></section>
-      <footer class="ts-foot">${cloudOk() ? '<button class="ts-import" data-act="cloudMenu">☁️ Jogos na nuvem</button>' : ''}<label class="ts-import">📂 Importar arquivo de jogo<input type="file" id="import" accept="application/json,.json"></label>
+      <footer class="ts-foot"><button class="ts-import" data-act="aboutDlg">ℹ️ Sobre</button>${cloudOk() ? '<button class="ts-import" data-act="cloudMenu">☁️ Jogos na nuvem</button>' : ''}<label class="ts-import">📂 Importar arquivo de jogo<input type="file" id="import" accept="application/json,.json"></label>
         <small>${D.leagues.length} ligas · ${D.clubs.length} clubes · dados abertos da Wikipédia e do Wikidata</small></footer>
     </div></div>`;
 }
@@ -3151,6 +3170,7 @@ const VIEWS = {
         <label>Partidas<select data-chg="matchMode"><option value="live" ${quickMode() ? '' : 'selected'}>Ao vivo (completa)</option><option value="quick" ${quickMode() ? 'selected' : ''}>⚡ Rápida (só os lances decisivos)</option></select></label></div>
       ${cloudOk() ? `<div class="row" style="margin-top:.8rem"><button data-act="cloudSave">☁️ Salvar na nuvem (Espaço ${UI.slot || 1})</button><button data-act="cloudMenu">☁️ Carregar da nuvem</button></div>
         <p class="muted">A nuvem guarda o jogo na sua conta Google (Google Drive) para continuar em outro aparelho.</p>` : ''}</section>
+      <section class="card"><h2>Sobre</h2>${aboutHtml()}</section>
       <section class="card"><h2>Como jogar</h2><ul>
       <li><strong>Elenco:</strong> escolha 11 titulares e até 7 reservas. Jogador fora de posição rende menos.</li>
       <li><strong>Energia:</strong> cai durante os jogos e recupera durante a semana. Faça rodízio.</li>
@@ -3372,6 +3392,7 @@ const ACT = {
     m.done = 'comprado'; toast(`✅ ${p.n} contratado no último dia da janela!`); save(); render();
   },
   tutNext() { UI.tut = (UI.tut || 0) + 1; tutorialStep(); },
+  aboutDlg() { openDlg(`<h2 id="dlg-title">Sobre o WiFoot Manager</h2>${aboutHtml()}`); },
   tutSkip() { setPref(tutKey(), '1'); closeDlg(); },
   async cloudSave() {
     if (!cloudOk() || !S) return;
