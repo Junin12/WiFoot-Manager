@@ -1235,7 +1235,7 @@ function aiTransfers() {
     let best = null;
     for (let t = 0; t < 60; t++) {
       const p = pick(all);
-      if (p.p !== need || p.club === me || p.club === buyer.id || p.r < avg - 1 || p.r > avg + 6) continue;
+      if (p.loan || p.p !== need || p.club === me || p.club === buyer.id || p.r < avg - 1 || p.r > avg + 6) continue;
       if (p.club && C(p.club).pl.length <= 18) continue;
       const fee = p.club ? Math.round(p.v * 1.1) : 0;
       if (fee > buyer.cash * .6) continue;
@@ -1441,6 +1441,7 @@ function endSeason() {
   nationalSeasonEnd(lines);
   if (career) careerSeasonEnd(lines, myPos);
   else if (S.man.money != null) { wealthSeasonEnd(lines); S.man.wage = coachWage(S.man.rep); }
+  loanSeasonEnd(lines, coachClub()); // empréstimos acabam antes dos contratos andarem
   // Jogadores: idade, evolução, contratos e aposentadoria
   for (const p of Object.values(S.players)) {
     if (p.id === pid && career) continue; // tratado em careerSeasonEnd
@@ -1736,6 +1737,84 @@ function myMatchDone(m) {
   if (side === 0 && c.ref) { const pr = c.price / c.ref; f += pr > 1.3 ? -1.5 : pr < .9 ? .5 : 0; }
   c.fans = clamp(Math.round((c.fans + f) * 10) / 10, 0, 100);
   if (isCareer() && S.man.cap && won) c.mor = clamp(c.mor + 1, 20, 100);
+  if (S.man.promise) {   // promessa feita na coletiva anterior
+    delete S.man.promise;
+    if (won) { c.fans = clamp(c.fans + 2, 0, 100); news(`Promessa cumprida: o ${c.name} venceu como o técnico garantiu.`); }
+    else { c.fans = clamp(c.fans - 4, 0, 100); S.man.conf = clamp(S.man.conf - 3, 0, 100); news(`A torcida do ${c.name} cobra a vitória prometida na coletiva.`); }
+  }
+  maybePress(won, lost, derby, Math.abs(gf - ga));
+}
+// ===================== Empréstimo de jogadores (com opção de compra fixada) =====================
+// O jogador vai para um clube da IA até o fim da temporada; o salário passa a ser dele.
+// No fim da temporada o clube pode exercer a opção pelo valor combinado; senão o jogador volta.
+function loanSuitors(p) {
+  const me = myClub();
+  return Object.values(S.clubs).filter(c => c.id !== me.id && !(S.man.owned || []).some(o => o.id === c.id) && c.pl.length < 32)
+    .map(c => [c, clubAvg(c)]).filter(([, a]) => a >= p.r - 10 && a <= p.r + 2)
+    .sort((x, y) => (x[0].lg === me.lg ? 0 : 1) - (y[0].lg === me.lg ? 0 : 1) || Math.abs(x[1] - p.r + 4) - Math.abs(y[1] - p.r + 4))
+    .map(x => x[0]);
+}
+function loanOut(p, opt) {
+  const me = myClub();
+  if (isCareer()) return 'No Modo Carreira o técnico não negocia jogadores.';
+  if (p.club !== me.id) return 'O jogador não está no seu clube.';
+  if (!isWindow(S.slot)) return 'Empréstimos só com a janela de transferências aberta.';
+  if (me.pl.length <= 18) return 'Seu elenco ficaria curto demais (mínimo de 18).';
+  if (!(opt > 0)) return 'Informe o valor da opção de compra.';
+  if (opt > p.v * 1.6) return `Ninguém aceita uma opção tão cara. Tente até ${money(niceRound(p.v * 1.6))}.`;
+  const [to] = loanSuitors(p);
+  if (!to) return `Nenhum clube se interessou por ${p.n} agora.`;
+  movePlayer(p, to.id);
+  p.loan = {from: me.id, opt: Math.round(opt), y: S.year};
+  news(`${p.n} foi emprestado pelo ${me.name} ao ${to.name} até o fim da temporada (opção de compra: ${money(p.loan.opt)}).`);
+  return '';
+}
+function loanSeasonEnd(lines, mine) {
+  for (const p of Object.values(S.players)) {
+    if (!p.loan) continue;
+    const to = C(p.club), from = C(p.loan.from), opt = p.loan.opt;
+    delete p.loan;
+    if (!to || !from) continue;
+    const buy = p.ap >= 8 && p.r >= clubAvg(to) - 2 && to.cash >= opt && rnd() < .6;
+    if (buy) {
+      to.cash -= opt; from.cash += opt; recordTransfer(p, from.id, to.id, opt);
+      p.ct = ri(2, 4); p.sal = salaryFor(p.v);
+      if (from.id === mine) { S.fin.tin += opt; lines.push(`💸 O ${to.name} exerceu a opção de compra de ${p.n}: ${money(opt)}.`); }
+    } else {
+      movePlayer(p, from.id);
+      if (from.id === mine) lines.push(`↩️ ${p.n} voltou do empréstimo ao ${to.name} (${p.ap} jogo(s), ${p.g} gol(s)).`);
+    }
+  }
+}
+
+// ===================== Entrevista coletiva =====================
+// Depois de clássicos, goleadas e às vezes em jogos comuns, a imprensa pergunta e a resposta mexe
+// no moral do elenco, na torcida e na confiança da diretoria. Prometer vitória cobra no jogo seguinte.
+const PRESS = {
+  win: {q: 'Repórter: "Grande vitória! O que fez a diferença hoje?"', a: [
+    ['Mérito todo do elenco', {mor: 4}], ['Foi bom, mas dá para melhorar', {mor: -1, conf: 2}], ['O adversário não estava à altura', {fans: 3, mor: 2, conf: -2}]]},
+  draw: {q: 'Repórter: "Empate com gosto de quê, professor?"', a: [
+    ['Respeito o adversário, ponto bem-vindo', {mor: 1}], ['No próximo jogo a vitória vem, prometo', {fans: 2, promise: 1}], ['O gramado atrapalhou muito', {fans: 1, conf: -1}]]},
+  loss: {q: 'Repórter: "A torcida vaiou na saída. O que você diz a ela?"', a: [
+    ['A culpa é minha, eu assumo', {fans: 2, mor: 2, conf: -1}], ['Os jogadores precisam render mais', {mor: -5, conf: 2}], ['A arbitragem decidiu o jogo', {fans: 2, conf: -1}]]},
+};
+function maybePress(won, lost, derby, diff) {
+  if (isCareer() || !S.man.club || !(derby || diff >= 4 || rnd() < .1)) return;
+  S.inbox.forEach(x => { if (x.type === 'press' && !x.done) x.done = 'sem resposta'; });
+  const k = won ? 'win' : lost ? 'loss' : 'draw';
+  mail({type: 'press', k, text: `🎙️ Entrevista coletiva${derby ? ' depois do clássico' : ''}. ${PRESS[k].q}`});
+}
+function pressAnswer(m, i) {
+  const opt = PRESS[m.k]?.a[i]; if (!opt || m.done) return;
+  if (!S.man.club) { m.done = 'você está sem clube'; return; }
+  const [txt, e] = opt, c = myClub();
+  c.fans ??= 60;
+  if (e.mor) c.mor = clamp(c.mor + e.mor, 20, 100);
+  if (e.fans) c.fans = clamp(c.fans + e.fans, 0, 100);
+  if (e.conf) S.man.conf = clamp(S.man.conf + e.conf, 0, 100);
+  if (e.promise) S.man.promise = 1;
+  m.done = `você respondeu: "${txt}"`;
+  news(`Na coletiva, o técnico do ${c.name} disse: "${txt}".`);
 }
 const fansText = f => f >= 80 ? 'Empolgada 🤩' : f >= 60 ? 'Satisfeita 🙂' : f >= 40 ? 'Desconfiada 😐' : 'Revoltada 😠';
 
@@ -2174,7 +2253,7 @@ function clubFortunes(lines) {
     if (c.cash < -Math.max(5e6, .3 * val)) {
       // Crise: vende os 2 mais valiosos para clubes com dinheiro
       const sold = [];
-      for (const p of c.pl.map(P).filter(p => p.id !== S.man.pid).sort((a, b) => b.v - a.v).slice(0, 2)) {
+      for (const p of c.pl.map(P).filter(p => p.id !== S.man.pid && !p.loan).sort((a, b) => b.v - a.v).slice(0, 2)) {
         const b = rich.find(x => x.id !== c.id && x.id !== me && x.cash > p.v && x.pl.length < 32);
         if (!b) continue;
         b.cash -= p.v; c.cash += p.v; movePlayer(p, b.id); p.sal = salaryFor(p.v); p.ct = ri(2, 4); sold.push(`${p.n} (${b.name})`);
@@ -3093,6 +3172,7 @@ const VIEWS = {
       if (m.type === 'offer' && !m.done) actions = `<div class="row" style="margin-top:.3rem"><button class="primary" data-act="offerAccept" data-id="${m.id}">Aceitar</button><button data-act="offerReject" data-id="${m.id}">Recusar</button></div>`;
       if (m.type === 'pOffer' && !m.done) actions = `<div class="row" style="margin-top:.3rem"><button class="primary" data-act="pOfferAccept" data-id="${m.id}">Aceitar proposta</button><button data-act="offerReject" data-id="${m.id}">Recusar</button></div>`;
       if (m.type === 'flash' && !m.done) actions = `<div class="row" style="margin-top:.3rem"><button class="primary" data-act="flashBuy" data-id="${m.id}">Comprar por ${money(m.price)}</button><button data-act="offerReject" data-id="${m.id}">Recusar</button></div>`;
+      if (m.type === 'press' && !m.done && S.man.club) actions = `<div class="row" style="margin-top:.3rem;flex-wrap:wrap">${PRESS[m.k].a.map(([t], i) => `<button data-act="pressAns" data-id="${m.id}" data-k="${i}">${esc(t)}</button>`).join('')}</div>`;
       if (m.type === 'job' && !m.done) actions = `<div class="row" style="margin-top:.3rem"><button class="primary" data-act="jobAccept" data-id="${m.id}">Aceitar o cargo</button><button data-act="offerReject" data-id="${m.id}">Recusar</button></div>`;
       return `<div class="msg ${m.readLater ? 'unread' : ''}"><span class="muted">Semana ${m.slot + 1}</span> — ${esc(m.text)}${m.done ? ` <em class="muted">(${esc(m.done)})</em>` : ''}${actions}</div>`;
     }).join('') : '<p class="muted">Caixa de entrada vazia.</p>'}</section>`;
@@ -3640,6 +3720,15 @@ const ACT = {
     p.sal = dem; p.ct = clamp(yrs, 1, 5);
     playerDlg(p.id, `Contrato renovado por ${p.ct} ano(s) com salário de ${money(dem)}/sem.`, true); save();
   },
+  loan(d) {
+    const p = P(+d.id), err = loanOut(p, +document.getElementById('loanOpt').value);
+    if (err) return playerDlg(p.id, err, false);
+    save(); render(); playerDlg(p.id, `${p.n} foi emprestado ao ${C(p.club).name}.`, true);
+  },
+  pressAns(d) {
+    const m = S.inbox.find(x => x.id === +d.id); if (!m) return;
+    pressAnswer(m, +d.k); save(); render();
+  },
   release(d) {
     const p = P(+d.id), cost = Math.round(p.sal * p.ct * 12);
     openDlg(`<h2 id="dlg-title">Dispensar ${esc(p.n)}?</h2><p>A multa rescisória é de <strong>${money(cost)}</strong>.</p>
@@ -3780,7 +3869,12 @@ function playerDlg(id, msg, ok) {
       <button data-act="sell" data-id="${id}">${p.sell ? 'Atualizar preço' : 'Colocar à venda'}</button>${p.sell ? `<button data-act="unsell" data-id="${id}">Retirar da venda</button>` : ''}</form>
       <form class="row" onsubmit="return false" style="margin-top:.5rem"><label>Renovar por<select id="renewYears">${[1, 2, 3, 4, 5].map(y => `<option value="${y}">${y} ano(s)</option>`).join('')}</select></label>
       <button data-act="renew" data-id="${id}">Renovar (pede ${money(dem)}/sem)</button></form>
+      <form class="row" onsubmit="return false" style="margin-top:.5rem"><label>Emprestar até o fim da temporada · opção de compra (€)<input id="loanOpt" type="number" min="1" step="50000" value="${niceRound(p.v * 1.2)}"></label>
+      <button data-act="loan" data-id="${id}">Emprestar</button></form>
       <p style="margin-top:.5rem"><button class="danger" data-act="release" data-id="${id}">Dispensar jogador</button></p>`;
+  } else if (p.loan) {
+    const from = C(p.loan.from);
+    actions = `<p class="notice">🔁 Emprestado pelo ${esc(from?.name || '?')} ao ${esc(club?.name || '?')} até o fim da temporada. Opção de compra: ${money(p.loan.opt)}.${p.loan.from === me.id ? ' Se o clube não comprar, ele volta para você.' : ''}</p>`;
   } else {
     const dem = salaryDemand(p, me);
     actions = `<h3>Fazer proposta</h3><form class="row" onsubmit="return false">
