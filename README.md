@@ -69,3 +69,15 @@ perl tools/07_pwa.pl                                                  # jogo, da
 ```
 
 O GitHub Pages publica essa pasta (Settings → Pages → branch `main`, pasta `/docs`). Para instalar: abra o site no Chrome (Android/computador) e use **Instalar app**; no iPhone, Safari → Compartilhar → **Adicionar à Tela de Início**.
+
+<!-- manutencao:inicio -->
+## Manutenção (resumo)
+
+> Resumo para manter o app. Atualizado em 14/11/2026. Visão de todos os apps: https://wiapps.com.br/documentacao/ (com senha).
+
+- **O que faz:** Jogo de técnico de futebol estilo Brasfoot, em HTML puro, com Modo Carreira de jogador.
+- **No ar:** https://wiapps.com.br/wifoot-manager/ · GitHub Pages: https://junin12.github.io/WiFoot-Manager/
+- **Rodar no PC:** Abrir index.html (dois cliques).
+- **Publicar:** docs/ → GitHub Pages; cópia no cPanel pelo wiapps-site.
+- **Chaves e senhas:** Não usa chave. O pacote com nomes reais (`data_real.js`) não fica no GitHub: só no PC, no projeto Apps Script e no Drive. Nunca coloque o valor de uma chave neste arquivo.
+<!-- manutencao:fim -->
